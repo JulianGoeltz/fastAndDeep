@@ -1,0 +1,3 @@
+[submodule "src/yin_yang_data_set"]
+	path = src/yin_yang_data_set
+	url = https://github.com/lkriener/yin_yang_data_set/

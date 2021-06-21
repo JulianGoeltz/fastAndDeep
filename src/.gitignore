@@ -1,0 +1,12 @@
+plot_test_calib_*resp.json
+plot_test_calibdistr_*.json
+plot_test_calibdistr_*.png
+dbg_trace_spike*npy
+comparison_hist.png
+
+debug_calib/
+tmp.png
+live_accuracy.png
+
+# backup of calibrations have this form
+*.bck_*

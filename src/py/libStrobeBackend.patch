@@ -1,0 +1,36 @@
+121c121,122
+<                 enable_links[3, 4] = True
+---
+>                 # enable_links[3:5] = True
+>                 enable_links[0:8] = True
+166,169c167,170
+<         config.clock_scale_fast = 0  # self._neuron_calib.refractory_clock
+<         config.clock_scale_slow = 9  # self._neuron_calib.refractory_clock
+<         config.clock_scale_adaptation_pulse = 15
+<         config.clock_scale_post_pulse = 15
+---
+>         config.clock_scale_fast = 3  # self._neuron_calib.refractory_clock
+>         config.clock_scale_slow = 3  # self._neuron_calib.refractory_clock
+>         # config.clock_scale_adaptation_pulse = 15
+>         # config.clock_scale_post_pulse = 15
+178a180,199
+> 
+>         # adapt synaptic strength
+>         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ adapt synaptic strength")
+>         calibpath = "/wang/users/jgoeltz/cluster_home/strobeStuff/ttfs_pytorch/src/calibrations/w66_BB.npz"
+>         calib = np.load(calibpath, allow_pickle=True)['neuron'].item()
+>         syn_exc = np.zeros(512, dtype=int)
+>         syn_inh = np.zeros(512, dtype=int)
+>         builder = stadls.PlaybackProgramBuilder()
+>         for neuron_coord in halco.iter_all(halco.AtomicNeuronOnDLS):
+>             neuron_config = calib.neurons[neuron_coord]
+>             syn_exc[int(neuron_coord.toEnum())] = neuron_config.excitatory_input.i_bias_gm
+>             syn_inh[int(neuron_coord.toEnum())] = neuron_config.inhibitory_input.i_bias_gm
+>         syn_exc = (syn_exc * 1.4).astype(int)
+>         syn_inh = (syn_inh * 1.4).astype(int)
+>         calix.common.helpers.capmem_set_neuron_cells(builder, {
+>             halco.CapMemRowOnCapMemBlock.i_bias_synin_exc_gm: syn_exc,
+>             halco.CapMemRowOnCapMemBlock.i_bias_synin_inh_gm: syn_inh,
+>         })
+>         builder = calix.common.helpers.wait_for_us(builder, calix.constants.capmem_level_off_time)
+>         calix.common.base.run(self._connection, builder)

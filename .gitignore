@@ -1,0 +1,22 @@
+# cache files
+.ipynb_checkpoints/
+Untitled.ipynb
+__pycache__/
+*.pyc
+*.swp
+
+# data folders
+data/
+experiment_results/
+experiment_pretrained/
+
+# concrete files
+Session.vim
+network.pth
+training.svg
+training.png
+slurm-*
+run_experiment.sh
+run_sweep.sh
+eval_experiment.sh
+debug_*.png
