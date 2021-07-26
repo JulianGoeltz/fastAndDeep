@@ -1,6 +1,7 @@
 @Library("jenlib") _
 
 
+timeout(time: 30, unit: "MINUTES") {
 withCcache() {
 withModules(modules: ["waf", "ppu-toolchain"]) {
 
@@ -17,7 +18,7 @@ stage("waf setup") {
 }
 
 stage("waf configure") {
-	onSlurmResource(partition: "compile",
+	onSlurmResource(partition: "jenkins",
 			"cpus-per-task": 8,
 			time: "15:0") {
 		inSingularity(app: "visionary-dls") {
@@ -28,10 +29,10 @@ stage("waf configure") {
 }
 
 stage("waf install") {
-	onSlurmResource(partition: "compile",
-			"cpus-per-task": 16,
+	onSlurmResource(partition: "jenkins",
+			"cpus-per-task": 8,
 			time: "6:0:0",
-			mem: "16G") {
+			mem: "8G") {
 		inSingularity(app: "visionary-dls") {
 			jesh("waf install")
 		}
@@ -46,12 +47,12 @@ stage("Checkout") {
 }
 
 stage("create calib") {
-	onSlurmResource(partition: "cube",
+	onSlurmResource(partition: "jenkins",
 			"cpus-per-task": 8,
 			wafer: 67,
 			"fpga-without": 3,
 			time: "1:0:0",
-			mem: "16G") {
+			mem: "8G") {
 		inSingularity(app: "visionary-dls") {
 			withModules(modules: ["localdir"]) {
 				jesh("module list")
@@ -82,7 +83,7 @@ stage("get datasets") {
 }
 
 stage("training") {
-	onSlurmResource(partition: "cube",
+	onSlurmResource(partition: "jenkins",
 			"cpus-per-task": 8,
 			wafer: 67,
 			"fpga-without": 3,
@@ -108,4 +109,4 @@ stage("finalisation") {
 	}
 }
 
-}}
+}}}
