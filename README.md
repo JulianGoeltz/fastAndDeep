@@ -21,7 +21,10 @@ Depending on your internet connection, this should take some minutes to an hour.
 If you want GPU support for speed up, you will have to get your `pytorch` to work with cuda.
 The above `pytorch` and `cudatoolkit 10.2` can be used to install the special lambertw function for GPU execution (check folder `pytorch_cuda_lambertw`, run `python setup.py install --user` in there to install the function).
 ### Datasets
-`pytorch` has functionality that automatically downloads the standard data sets (for us MNIST), for this an internet connection is necessary (when executing on compute nodes on a HPC there might not be an internet connection, execute once on the frontend in that case).
+`pytorch` has functionality that automatically downloads the standard data sets (for us MNIST), for this an internet connection is necessary (when executing on compute nodes on a HPC there might not be an internet connection, execute once on the frontend in that case), e.g. with
+```
+python -c "import torchvision; print(torchvision.datasets.MNIST('../data/mnist', train=True, download=True))"
+```
 
 The [`yin_yang`](https://github.com/lkriener/yin_yang_data_set) is included as a submodule, to initialise execute once
 ```

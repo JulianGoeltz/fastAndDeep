@@ -69,7 +69,7 @@ if __name__ == '__main__':
             if dataset == "yin_yang":
                 network_layout['n_inputs'] = network_layout['n_inputs'] * multiply_input_layer
                 network_layout['n_biases'] = [multiply_bias, 0]
-                network_layout['bias_times'] = [np.array(times).repeat(multiply_bias)
+                network_layout['bias_times'] = [list(np.array(times).repeat(multiply_bias))  # list for yaml dump
                                                 for times in network_layout['bias_times']]
         else:
             if os.environ.get('SLURM_HARDWARE_LICENSES') is not None:
