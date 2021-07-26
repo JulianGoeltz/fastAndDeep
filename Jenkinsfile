@@ -1,8 +1,9 @@
 @Library("jenlib") _
 
 
-timeout(time: 30, unit: "MINUTES") {
-withCcache() {
+
+timeout(time: 120, unit: "MINUTES") {
+//withCcache() {
 withModules(modules: ["waf", "ppu-toolchain"]) {
 
 stage("waf setup") {
@@ -109,4 +110,7 @@ stage("finalisation") {
 	}
 }
 
-}}}
+
+}
+//}
+}
