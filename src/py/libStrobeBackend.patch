@@ -17,17 +17,15 @@
 > 
 >         # adapt synaptic strength
 >         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ adapt synaptic strength")
->         calibpath = "/wang/users/jgoeltz/cluster_home/strobeStuff/ttfs_pytorch/src/calibrations/w66_BB.npz"
->         calib = np.load(calibpath, allow_pickle=True)['neuron'].item()
 >         syn_exc = np.zeros(512, dtype=int)
 >         syn_inh = np.zeros(512, dtype=int)
 >         builder = stadls.PlaybackProgramBuilder()
 >         for neuron_coord in halco.iter_all(halco.AtomicNeuronOnDLS):
->             neuron_config = calib.neurons[neuron_coord]
+>             neuron_config = self._neuron_calib.neurons[neuron_coord]
 >             syn_exc[int(neuron_coord.toEnum())] = neuron_config.excitatory_input.i_bias_gm
 >             syn_inh[int(neuron_coord.toEnum())] = neuron_config.inhibitory_input.i_bias_gm
->         syn_exc = (syn_exc * 1.4).astype(int)
->         syn_inh = (syn_inh * 1.4).astype(int)
+>         syn_exc = np.clip(syn_exc * 1.4, 0, 1022).astype(int)
+>         syn_inh = np.clip(syn_inh * 1.4, 0, 1022).astype(int)
 >         calix.common.helpers.capmem_set_neuron_cells(builder, {
 >             halco.CapMemRowOnCapMemBlock.i_bias_synin_exc_gm: syn_exc,
 >             halco.CapMemRowOnCapMemBlock.i_bias_synin_inh_gm: syn_inh,
