@@ -2,6 +2,7 @@
 
 
 
+try {
 timeout(time: 120, unit: "MINUTES") {
 //withCcache() {
 withModules(modules: ["waf", "ppu-toolchain"]) {
@@ -113,4 +114,13 @@ stage("finalisation") {
 
 }
 //}
+}
+
+} catch (Throwable t) {
+	notifyFailure(mattermostChannel: "#time-to-first-spike-on-hx")
+	throw t
+}
+
+if (currentBuild.currentResult != "SUCCESS") {
+	notifyFailure(mattermostChannel: "#time-to-first-spike-on-hx")
 }
