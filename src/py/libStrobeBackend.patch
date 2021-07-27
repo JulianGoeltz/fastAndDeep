@@ -1,9 +1,9 @@
-121c121,122
+128c128,129
 <                 enable_links[3, 4] = True
 ---
 >                 # enable_links[3:5] = True
 >                 enable_links[0:8] = True
-166,169c167,170
+184,187c185,188
 <         config.clock_scale_fast = 0  # self._neuron_calib.refractory_clock
 <         config.clock_scale_slow = 9  # self._neuron_calib.refractory_clock
 <         config.clock_scale_adaptation_pulse = 15
@@ -13,7 +13,7 @@
 >         config.clock_scale_slow = 3  # self._neuron_calib.refractory_clock
 >         # config.clock_scale_adaptation_pulse = 15
 >         # config.clock_scale_post_pulse = 15
-178a180,199
+196a198,215
 > 
 >         # adapt synaptic strength
 >         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ adapt synaptic strength")
