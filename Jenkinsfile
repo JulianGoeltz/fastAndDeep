@@ -98,14 +98,31 @@ stage("training") {
 }
 
 stage("inference") {
+	onSlurmResource(partition: "jenkins",
+			"cpus-per-task": 8,
+			wafer: 67,
+			"fpga-without": 3,
+			time: "10:0",
+			mem: "16G") {
+		inSingularity(app: "visionary-dls") {
+			withModules(modules: ["localdir"]) {
+				jesh('[ "$(ls fastAndDeep/experiment_results/yin_yang_hx_* | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/yin_yang_hx_* | tail -n 1) fastAndDeep/experiment_results/lastrun')
+				jesh('ls -lAh fastAndDeep')
+				jesh('ls -lAh fastAndDeep/experiment_results')
+				jesh('ls -lAh fastAndDeep/experiment_results/lastrun/')
+				jesh('ls -lAh fastAndDeep/experiment_results/lastrun/epoch_300')
+				jesh('ls -lAh fastAndDeep/src')
+				jesh('cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py inference ../experiment_results/lastrun')
+			}
+		}
+	}
 }
 
 
 stage("finalisation") {
 	runOnSlave(label: "frontend") {
-		jesh("ls")
-		jesh("pwd")
-		jesh("echo $SINGULARITY_CONTAINER")
+		archiveArtifacts 'fastAndDeep/experiment_results/lastrun/epoch_300/*.png'
+		archiveArtifacts 'fastAndDeep/src/live_accuracy.png'
 	}
 }
 

@@ -125,7 +125,7 @@ if __name__ == '__main__':
         if os.environ.get('SLURM_HARDWARE_LICENSES') is not None:
             with open('py/hx_settings.yaml') as f:
                 hx_settings = yaml.load(f, Loader=yaml.SafeLoader)
-            hx_setup_no = int(os.environ.get('SLURM_HARDWARE_LICENSES')[1:3])
+            hx_setup_no = os.environ.get('SLURM_HARDWARE_LICENSES')
             if hx_setup_no not in hx_settings:
                 raise OSError(f"Setup no {hx_setup_no} is not described in hx settings file")
             neuron_params = hx_settings[hx_setup_no]['neuron_params']

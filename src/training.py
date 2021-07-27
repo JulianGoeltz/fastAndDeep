@@ -62,7 +62,7 @@ class Net(torch.nn.Module):
         if self.use_hicannx:
             with open('py/hx_settings.yaml') as f:
                 self.hx_settings = yaml.load(f, Loader=yaml.SafeLoader)[
-                    int(os.environ.get('SLURM_HARDWARE_LICENSES')[1:3])]
+                    os.environ.get('SLURM_HARDWARE_LICENSES')]
 
             self.hx_settings['retries'] = 5
             self.hx_settings['single_simtime'] = 30.
@@ -517,7 +517,7 @@ def save_data(dirname, filename, net, label_weights, train_losses, train_accurac
             f.write(os.environ.get('SLURM_HARDWARE_LICENSES'))
         # save current calib settings
         with open(dirname + '/hx_settings.yaml', 'w') as f:
-            yaml.dump({int(os.environ.get('SLURM_HARDWARE_LICENSES')[1:3]): net.hx_settings}, f)
+            yaml.dump({os.environ.get('SLURM_HARDWARE_LICENSES'): net.hx_settings}, f)
     # save training result
     np.save(dirname + filename + '_label_weights_training.npy', label_weights)
     np.save(dirname + filename + '_train_losses.npy', train_losses)

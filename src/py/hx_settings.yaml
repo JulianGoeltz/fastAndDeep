@@ -1,4 +1,4 @@
-66:
+W66F0:
         calibration: calibrations/w66_BB.npz
         neuron_params:
                 leak: 0.70
@@ -8,7 +8,7 @@
         scale_weights: 30
         synapse_bias: 1000
         taum : 6.
-67:
+W67F3:
         calibration: calibrations/tmp_W67F3.npz
         neuron_params:
                 leak: 0.70
