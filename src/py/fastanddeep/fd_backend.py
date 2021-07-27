@@ -102,7 +102,7 @@ class FandDBackend(strobe.backend.StrobeBackend):
                 builder.write(halco.PPUControlRegisterOnDLS(ppu), ppu_control_reg_reset)
 
         stadls.run(self._connection, builder.done())
-        self.load_ppu_program("/wang/users/jgoeltz/cluster_home/strobeStuff/bin/strobe.bin")
+        self.load_ppu_program("../../bin/strobe.bin")
 
     def config_postcalib(self, postcalib):
         """load and apply postcalib

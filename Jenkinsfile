@@ -3,18 +3,16 @@
 
 
 try {
-timeout(time: 120, unit: "MINUTES") {
-//withCcache() {
+timeout(time: 180, unit: "MINUTES") {
+withCcache() {
 withModules(modules: ["waf", "ppu-toolchain"]) {
 
 stage("waf setup") {
 	inSingularity(app: "visionary-dls") {
 		wafSetup(
-			//container: [app: "visionary-dls"],
 			projects: ["model-hx-strobe"],
 			setupOptions: "--clone-depth=1 --gerrit-changes=13293,15180",
 			noExtraStage: true
-			// notificationChannel: "#time-to-first-spike-on-hx"
 		)
 	}
 }
@@ -22,7 +20,7 @@ stage("waf setup") {
 stage("waf configure") {
 	onSlurmResource(partition: "jenkins",
 			"cpus-per-task": 8,
-			time: "15:0") {
+			time: "5:0") {
 		inSingularity(app: "visionary-dls") {
 			jesh("echo $SINGULARITY_CONTAINER")
 			jesh("waf configure")
@@ -33,7 +31,7 @@ stage("waf configure") {
 stage("waf install") {
 	onSlurmResource(partition: "jenkins",
 			"cpus-per-task": 4,
-			time: "6:0:0",
+			time: "1:0:0",
 			mem: "24G") {
 		inSingularity(app: "visionary-dls") {
 			jesh("waf install")
@@ -42,7 +40,7 @@ stage("waf install") {
 }
 
 stage("Checkout") {
-	// for sure done wrong, but how to put it into a subfolder with scm?
+	// for sure done wrong, but how to put it into a subfolder and special branch with scm?
 	runOnSlave(label: "frontend") {
 		jesh("git clone -b feature/Jenkinsjob https://github.com/JulianGoeltz/fastAndDeep")
 	}
@@ -53,7 +51,7 @@ stage("create calib") {
 			"cpus-per-task": 8,
 			wafer: 67,
 			"fpga-without": 3,
-			time: "1:0:0",
+			time: "10:0",
 			mem: "8G") {
 		inSingularity(app: "visionary-dls") {
 			withModules(modules: ["localdir"]) {
@@ -113,7 +111,7 @@ stage("finalisation") {
 
 
 }
-//}
+}
 }
 
 } catch (Throwable t) {
