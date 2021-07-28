@@ -107,7 +107,7 @@ stage("inference") {
 			withModules(modules: ["localdir"]) {
 				jesh('[ "$(ls fastAndDeep/experiment_results/ | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/ | tail -n 1) fastAndDeep/experiment_results/lastrun')
 				jesh('cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py inference ../experiment_results/lastrun | tee inference.out')
-				jesh('cd fastAndDeep/src; (( $(echo "93 > $(grep -oP "the accuracy is \K[0-9.]*" inference.out)" | bc -l) )) && echo "accuracy to bad" && exit 1 || exit 0')
+				jesh('cd fastAndDeep/src; (( $(echo "93 > $(grep -oP "the accuracy is \\K[0-9.]*" inference.out)" | bc -l) )) && echo "accuracy to bad" && exit 1 || exit 0')
 			}
 		}
 	}
