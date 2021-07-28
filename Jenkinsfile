@@ -22,7 +22,6 @@ stage("waf configure") {
 			"cpus-per-task": 8,
 			time: "5:0") {
 		inSingularity(app: "visionary-dls") {
-			jesh("echo $SINGULARITY_CONTAINER")
 			jesh("waf configure")
 		}
 	}
@@ -106,13 +105,9 @@ stage("inference") {
 			mem: "16G") {
 		inSingularity(app: "visionary-dls") {
 			withModules(modules: ["localdir"]) {
-				jesh('[ "$(ls fastAndDeep/experiment_results/yin_yang_hx_* | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/yin_yang_hx_* | tail -n 1) fastAndDeep/experiment_results/lastrun')
-				jesh('ls -lAh fastAndDeep')
-				jesh('ls -lAh fastAndDeep/experiment_results')
-				jesh('ls -lAh fastAndDeep/experiment_results/lastrun/')
-				jesh('ls -lAh fastAndDeep/experiment_results/lastrun/epoch_300')
-				jesh('ls -lAh fastAndDeep/src')
-				jesh('cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py inference ../experiment_results/lastrun')
+				jesh('[ "$(ls fastAndDeep/experiment_results/ | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/ | tail -n 1) fastAndDeep/experiment_results/lastrun')
+				jesh('cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py inference ../experiment_results/lastrun | tee inference.out')
+				jesh('cd fastAndDeep/src; (( $(echo "93 > $(grep -oP "the accuracy is \K[0-9.]*" inference.out)" | bc -l) )) && echo "accuracy to bad" && exit 1 || exit 0')
 			}
 		}
 	}
@@ -123,6 +118,7 @@ stage("finalisation") {
 	runOnSlave(label: "frontend") {
 		archiveArtifacts 'fastAndDeep/experiment_results/lastrun/epoch_300/*.png'
 		archiveArtifacts 'fastAndDeep/src/live_accuracy.png'
+		archiveArtifacts 'fastAndDeep/src/py/jenkinssummary_yin_yang.png'
 	}
 }
 
@@ -139,3 +135,27 @@ stage("finalisation") {
 if (currentBuild.currentResult != "SUCCESS") {
 	notifyFailure(mattermostChannel: "#time-to-first-spike-on-hx")
 }
+
+/**
+ * Setting the description of the jenkins job (to have it in the repository).
+ */
+setJobDescription("""
+<p>
+  Repository is located <a href="https://github.com/JulianGoeltz/fastanddeep">on GitHub</a>, Jenkinsjob is executed daily in the hour after midnight and should take around 1.5 hours.
+  Details on the theory <a href="https://arxiv.org/abs/1912.11443">can be found in the publication arXiv:1912.11443</a>, it is used to classify <a href="https://arxiv.org/abs/2102.08211">the Yin-Yang dataset</a>.
+</p>
+<p>
+  <h1>Summary of the last few runs</h1>
+  <i>still to come</i>
+  <br />
+  <img width=600 src="lastSuccessfulBuild/artifact/fastAndDeep/src/py/jenkinssummary_yinyang.png"/>
+</p>
+<p>
+  <h1>Stats of last stable run</h1>
+  <br />
+  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_300/yin_yang_classification_train.png"/>
+  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_300/yin_yang_classification_test.png"/>
+  <br />
+  <img width=600 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_300/yin_yang_summary_plot.png"/>
+</p>
+""")
