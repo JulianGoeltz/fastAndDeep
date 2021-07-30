@@ -154,7 +154,7 @@ setJobDescription("""
   <h1>Summary of the last few runs</h1>
   <i>still to come</i>
   <br />
-  <img width=600 src="lastSuccessfulBuild/artifact/fastAndDeep/src/py/jenkinssummary_yinyang.png"/>
+  <img width=600 src="lastSuccessfulBuild/artifact/fastAndDeep/src/py/jenkinssummary_yin_yang.png"/>
 </p>
 <p>
   <h1>Stats of last stable run</h1>
