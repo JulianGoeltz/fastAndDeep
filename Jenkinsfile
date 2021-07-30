@@ -123,7 +123,7 @@ stage("finalisation") {
 		archiveArtifacts 'fastAndDeep/src/py/jenkinssummary_yin_yang.png'
 		// test whether accuracy is too low
 		inSingularity(app: "visionary-dls") {
-			jesh('cd fastAndDeep/src; (( $(echo "93 > $(grep -oP "the accuracy is \\K[0-9.]*" inference.out)" | bc -l) )) && echo "accuracy too bad" && exit 1 || exit 0')
+			jesh('cd fastAndDeep/src; (( $(echo "92 > $(grep -oP "the accuracy is \\K[0-9.]*" inference.out)" | bc -l) )) && echo "accuracy too bad" && exit 1 || exit 0')
 		}
 	}
 }

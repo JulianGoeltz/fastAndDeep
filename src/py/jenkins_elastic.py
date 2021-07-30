@@ -13,7 +13,7 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 
-json_filename = '/wang/users/jgoeltz/cluster_home/jenkins_elasticSub/bss2.json'
+json_filename = '/wang/data/bss2-testing/fast_and_deep/data.json'
 
 
 def get_data(dirname, dataset, datatype):
