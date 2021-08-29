@@ -1,6 +1,12 @@
 @Library("jenlib") _
 
 
+addBuildParameter(string(name: 'waferstring', defaultValue: "67",
+		         description: 'The wafer on which the experiments should be executed.'))
+addBuildParameter(string(name: 'fpgastring', defaultValue: "3",))
+
+wafer = Integer.parseInt(params.get('waferstring'))
+fpga = Integer.parseInt(params.get('fpgastring'))
 
 try {
 timeout(time: 180, unit: "MINUTES") {
@@ -48,15 +54,16 @@ stage("Checkout") {
 stage("create calib") {
 	onSlurmResource(partition: "jenkins",
 			"cpus-per-task": 8,
-			wafer: 67,
-			"fpga-without": 3,
+			wafer: "${wafer}",
+			"fpga-without": "${fpga}",
 			time: "10:0",
 			mem: "8G") {
 		inSingularity(app: "visionary-dls") {
 			withModules(modules: ["localdir"]) {
+				jesh("cd fastAndDeep/src/py; sed -i 's/temp_for_jenkins/W${wafer}F${fpga}/' hx_settings.yaml")
 				jesh("module list")
 				jesh("module show localdir")
-				jesh("cd model-hx-strobe/experiments/yinyang; python generate_calibration.py --output ../../../fastAndDeep/src/calibrations/tmp_W67F3.npz")
+				jesh("cd model-hx-strobe/experiments/yinyang; python generate_calibration.py --output ../../../fastAndDeep/src/calibrations/tmp_jenkins.npz")
 			}
 		}
 	}
@@ -84,8 +91,8 @@ stage("get datasets") {
 stage("training") {
 	onSlurmResource(partition: "jenkins",
 			"cpus-per-task": 8,
-			wafer: 67,
-			"fpga-without": 3,
+			wafer: "${wafer}",
+			"fpga-without": "${fpga}",
 			time: "5:0:0",
 			mem: "16G") {
 		inSingularity(app: "visionary-dls") {
@@ -99,8 +106,8 @@ stage("training") {
 stage("inference") {
 	onSlurmResource(partition: "jenkins",
 			"cpus-per-task": 8,
-			wafer: 67,
-			"fpga-without": 3,
+			wafer: "${wafer}",
+			"fpga-without": "${fpga}",
 			time: "10:0",
 			mem: "16G") {
 		inSingularity(app: "visionary-dls") {

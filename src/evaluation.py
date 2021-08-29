@@ -587,7 +587,6 @@ def yin_yang_hiddentimes(datatype, dataset, dirname='tmp', filename='', referenc
     if outputs is None and labels is None:
         return
     hiddens = hiddens.detach().cpu().numpy()
-    print(hiddens.shape)
     reduced_inputs = np.array([[item[0], item[1]] for item in inputs])
     cm = plt.cm.get_cmap('RdYlBu')
     norm = plt.Normalize(0., 3.)

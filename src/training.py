@@ -690,13 +690,15 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
                 fig, ax = plt.subplots(1, 1)
                 tmp = 1. - running_mean(tmp_training_progress, N=30)
                 ax.plot(np.arange(len(tmp)) / len(trainloader), tmp)
-                ax.set_ylim(0.01, 1.0)
+                ax.set_ylim(0.005, 1.0)
                 ax.set_yscale('log')
                 ax.set_xlabel("epochs")
-                ax.set_title("error (1-accuracy): running_mean of 30 batches")
+                ax.set_ylabel("error [%] (running_mean of 30 batches)")
                 ax.axhline(0.30)
                 ax.axhline(0.05)
-                ax.axhline(0.02)
+                ax.axhline(0.01)
+                ax.set_yticks([0.01, 0.05, 0.1, 0.3])
+                ax.set_yticklabels([1, 5, 10, 30])
                 fig.savefig('live_accuracy.png')
                 print("===========Saved live accuracy plot")
                 plt.close(fig)
@@ -1007,7 +1009,7 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
 
     print("initial validation started")
     with torch.no_grad():
-        loss, validate_accuracy, validate_outputs, validate_labels = validation_step(
+        loss, validate_accuracy, validate_outputs, validate_labels, _ = validation_step(
             net, criterion, loader_val, device)
         tmp_class_outputs = [[] for i in range(num_classes)]
         for pattern in range(len(validate_outputs)):
