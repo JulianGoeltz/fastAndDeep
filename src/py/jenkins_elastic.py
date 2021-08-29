@@ -31,8 +31,7 @@ def get_data(dirname, dataset, datatype):
     return np.mean(labels == firsts)
 
 
-if __name__ == '__main__':
-    # ###################################
+def write_new_data():
     path = "../../experiment_results/lastrun/epoch_300"
     with open(osp.join(path, "config.yaml")) as f:
         dataset = yaml.safe_load(f)['dataset']
@@ -61,18 +60,27 @@ if __name__ == '__main__':
     with open(json_filename, 'w') as f:
         json.dump(all_data, f)
 
-    # ###################################
+
+def plot_summary():
+    with open(json_filename, 'r') as f:
+        all_data = json.load(f)
+
     # plot all the last runs
     parser = argparse.ArgumentParser()
     # all those are expected to be counted from the end
-    parser.add_argument('--firstBuild', default=20, type=int)
+    parser.add_argument('--firstBuild', default=15, type=int)
     parser.add_argument('--lastBuild', default=0, type=int)
     parser.add_argument('--dataset', default='yin_yang', type=str)
+    parser.add_argument('--setup', default='all', type=str)
     args = parser.parse_args()
 
     # getting correctly sorted subset of builds
     builds = sorted(
-        [int(i) for i in all_data.keys() if all_data[i]['dataset'] == args.dataset]
+        [int(i) for i in all_data.keys() if (
+            all_data[i]['dataset'] == args.dataset and
+            (args.setup == 'all' or all_data[i]['HX'] == args.setup)
+        )
+        ]
     )[-args.firstBuild:]
     if args.lastBuild != 0:
         builds = builds[:-args.lastBuild]
@@ -90,7 +98,10 @@ if __name__ == '__main__':
     # formatting
     ax.set_yscale('log')
     ax.set_ylabel('error [%]')
-    ax.set_title("train and test accuracies")
+    if args.setup == 'all':
+        ax.set_title("train and test accuracies")
+    else:
+        ax.set_title(f"train and test accuracies (on {args.setup})")
     ax.axhline(1, color='black')
     ax.axhline(5, color='black')
     ax.axhline(30, color='black')
@@ -99,12 +110,21 @@ if __name__ == '__main__':
     ax.set_yticklabels([1, 5, 10, 30])
     ax.set_xticks(xvals)
     ax.set_xticklabels(
-        ["#{} ({})".format(buildNo,
-                           datetime.datetime.fromtimestamp(
-                               float(all_data[str(buildNo)]["date"])).strftime('%d-%m'))
+        ["#{} ({}){}".format(buildNo,
+                             datetime.datetime.fromtimestamp(
+                                 float(all_data[str(buildNo)]["date"])).strftime('%d-%m'),
+                             f"\n{all_data[str(buildNo)]['HX']}" if args.setup == 'all' else '',
+                             )
          for buildNo in builds],
         rotation=-90)
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])  # due to suptitle
 
     # saving
-    fig.savefig(f"jenkinssummary_{dataset}.png")
+    fig.savefig(f"jenkinssummary_{args.dataset}.png")
+
+
+if __name__ == '__main__':
+    # ###################################
+    write_new_data()
+    # ###################################
+    plot_summary()

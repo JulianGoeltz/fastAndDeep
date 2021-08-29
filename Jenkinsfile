@@ -1,6 +1,5 @@
 @Library("jenlib") _
 
-
 addBuildParameter(string(name: 'waferstring', defaultValue: "67",
 		         description: 'The wafer on which the experiments should be executed.'))
 addBuildParameter(string(name: 'fpgastring', defaultValue: "3",))
@@ -60,7 +59,6 @@ stage("create calib") {
 			mem: "8G") {
 		inSingularity(app: "visionary-dls") {
 			withModules(modules: ["localdir"]) {
-				jesh("cd fastAndDeep/src/py; sed -i 's/temp_for_jenkins/W${wafer}F${fpga}/' hx_settings.yaml")
 				jesh("module list")
 				jesh("module show localdir")
 				jesh("cd model-hx-strobe/experiments/yinyang; python generate_calibration.py --output ../../../fastAndDeep/src/calibrations/tmp_jenkins.npz")
@@ -73,6 +71,14 @@ stage("patch strobe backend") {
 	runOnSlave(label: "frontend") {
 		dir("fastAndDeep/src") {
 			jesh("patch ../../lib/strobe/backend.py -i py/libStrobeBackend.patch")
+		}
+	}
+}
+
+stage("adapt hx_settings.yaml to current wafer/FPGA") {
+	runOnSlave(label: "frontend") {
+		dir("fastAndDeep/src/py") {
+			jesh("sed -i 's/temp_for_jenkins/W${wafer}F${fpga}/' hx_settings.yaml")
 		}
 	}
 }
