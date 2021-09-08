@@ -1,6 +1,6 @@
 @Library("jenlib") _
 
-addBuildParameter(string(name: 'waferstring', defaultValue: "67",
+addBuildParameter(string(name: 'waferstring', defaultValue: "66",
 		         description: 'The wafer on which the experiments should be executed.'))
 addBuildParameter(string(name: 'fpgastring', defaultValue: "3",))
 
@@ -147,12 +147,12 @@ stage("finalisation") {
 }
 
 } catch (Throwable t) {
-	notifyFailure(mattermostChannel: "#time-to-first-spike-on-hx")
+	notifyFailure(mattermostChannel: "#hicann-dls-users")
 	throw t
 }
 
 if (currentBuild.currentResult != "SUCCESS") {
-	notifyFailure(mattermostChannel: "#time-to-first-spike-on-hx")
+	notifyFailure(mattermostChannel: "#hicann-dls-users")
 }
 
 /**
