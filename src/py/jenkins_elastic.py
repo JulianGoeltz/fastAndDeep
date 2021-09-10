@@ -117,6 +117,11 @@ def plot_summary():
                              )
          for buildNo in builds],
         rotation=-90)
+    if args.setup == 'all':
+        all_setups = list(np.unique([all_data[str(buildNo)]['HX'] for buildNo in builds]))
+        for ticklabel, buildNo in zip(ax.get_xticklabels(), builds):
+            index_of_setup = all_setups.index(all_data[str(buildNo)]['HX'])
+            ticklabel.set_color(f"C{index_of_setup}")
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])  # due to suptitle
 
     # saving
