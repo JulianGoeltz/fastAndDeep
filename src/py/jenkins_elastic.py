@@ -3,6 +3,7 @@ import argparse
 import datetime
 import json
 import matplotlib as mpl
+import matplotlib.lines as mlines
 import numpy as np
 import os
 import os.path as osp
@@ -75,25 +76,38 @@ def plot_summary():
     args = parser.parse_args()
 
     # getting correctly sorted subset of builds
-    builds = sorted(
+    builds = np.array(sorted(
         [int(i) for i in all_data.keys() if (
             all_data[i]['dataset'] == args.dataset and
             (args.setup == 'all' or all_data[i]['HX'] == args.setup)
         )
         ]
-    )[-args.firstBuild:]
+    )[-args.firstBuild:])
     if args.lastBuild != 0:
         builds = builds[:-args.lastBuild]
-    xvals = range(len(builds))
+    xvals = np.arange(len(builds))
+    all_setups = list(np.unique([all_data[str(buildNo)]['HX'] for buildNo in builds]))
+    for buildNo in builds:
+        all_data[str(buildNo)]['error_train'] = 100 - 100 * all_data[str(buildNo)]['accuracy_train']
+        all_data[str(buildNo)]['error_test'] = 100 - 100 * all_data[str(buildNo)]['accuracy_test']
 
     print(f"plotting {len(builds)} builds: {builds}")
 
     fig, ax = plt.subplots(1, 1, figsize=((6, 4.5)))
     # plotting
-    ax.plot(xvals, [100 - 100 * all_data[str(buildNo)]['accuracy_train'] for buildNo in builds],
-            label="train set", ls='', marker='x')
-    ax.plot(xvals, [100 - 100 * all_data[str(buildNo)]['accuracy_test'] for buildNo in builds],
-            label="test set", ls='', marker='x')
+    if args.setup == 'all':
+        for i, setup in enumerate(all_setups):
+            indices = [all_data[str(buildNo)]['HX'] == setup for buildNo in builds]
+            ax.plot(xvals[indices], [all_data[str(buildNo)]['error_train'] for buildNo in builds[indices]],
+                    label="train set", ls='', marker='3', color=f"C{i}")
+            ax.plot(xvals[indices], [all_data[str(buildNo)]['error_test'] for buildNo in builds[indices]],
+                    label="test set", ls='', marker='x', color=f"C{i}")
+
+    else:
+        ax.plot(xvals, [all_data[str(buildNo)]['error_train'] for buildNo in builds],
+                label="train set", color='black', ls='', marker='3')
+        ax.plot(xvals, [all_data[str(buildNo)]['error_test'] for buildNo in builds],
+                label="test set", color='black', ls='', marker='x')
 
     # formatting
     ax.set_yscale('log')
@@ -105,7 +119,12 @@ def plot_summary():
     ax.axhline(1, color='black')
     ax.axhline(5, color='black')
     ax.axhline(30, color='black')
-    ax.legend()
+    ax.legend(
+        handles=[
+            mlines.Line2D([], [], color='black', lw=0, marker='x', label='test'),
+            mlines.Line2D([], [], color='black', lw=0, marker='3', label='train'),
+        ],
+        loc='lower left')
     ax.set_yticks([1, 5, 10, 30])
     ax.set_yticklabels([1, 5, 10, 30])
     ax.set_xticks(xvals)
@@ -118,7 +137,6 @@ def plot_summary():
          for buildNo in builds],
         rotation=-90)
     if args.setup == 'all':
-        all_setups = list(np.unique([all_data[str(buildNo)]['HX'] for buildNo in builds]))
         for ticklabel, buildNo in zip(ax.get_xticklabels(), builds):
             index_of_setup = all_setups.index(all_data[str(buildNo)]['HX'])
             ticklabel.set_color(f"C{index_of_setup}")
