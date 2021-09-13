@@ -39,6 +39,8 @@ stage("waf install") {
 	}
 }
 
+// globally define the two variables to not have them only in one scope
+int wafer = 0, fpga = 0;
 stage("Checkout and determine chip") {
 	// for sure done wrong, but how to put it into a subfolder and special branch with scm?
 	runOnSlave(label: "frontend") {
@@ -52,8 +54,8 @@ stage("Checkout and determine chip") {
 					returnStdout: true)
 			}
 		}
-		def wafer = chipstring.split("W")[1].split("F")[0]
-		def fpga = chipstring.split("W")[1].split("F")[1]
+		wafer = Integer.parseInt(chipstring.split("W")[1].split("F")[0])
+		fpga = Integer.parseInt(chipstring.split("W")[1].split("F")[1])
 		print ("using chip ${chipstring} of wafer ${wafer} and fpga ${fpga}")
 	}
 }
