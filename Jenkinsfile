@@ -1,11 +1,7 @@
 @Library("jenlib") _
 
-addBuildParameter(string(name: 'waferstring', defaultValue: "66",
-		         description: 'The wafer on which the experiments should be executed.'))
-addBuildParameter(string(name: 'fpgastring', defaultValue: "3",))
-
-wafer = Integer.parseInt(params.get('waferstring'))
-fpga = Integer.parseInt(params.get('fpgastring'))
+addBuildParameter(string(name: 'chipstring', defaultValue: "W66F0",
+		         description: 'The chip on which the experiments should be executed (in the form `W66F3`). If this string is "random", a random free chip will be used.'))
 
 try {
 timeout(time: 180, unit: "MINUTES") {
@@ -43,10 +39,22 @@ stage("waf install") {
 	}
 }
 
-stage("Checkout") {
+stage("Checkout and determine chip") {
 	// for sure done wrong, but how to put it into a subfolder and special branch with scm?
 	runOnSlave(label: "frontend") {
 		jesh("git clone -b feature/Jenkinsjob https://github.com/JulianGoeltz/fastAndDeep")
+		// determine the chip to be used in the following experiments
+		chipstring = params.get('chipstring')
+		if  (! chipstring.matches(/W[0-9]+F[0,3]/)) {
+			print ("The given chip string does not match the regex /W[0-9]+F[0,3]/ using tools-slurm to find a random free chip")
+			withModules(modules: ["tools-slurm"]) {
+				chipstring = jesh(script: "find_free_cube.py --random",
+					returnStdout: true)
+			}
+		}
+		def wafer = chipstring.split("W")[1].split("F")[0]
+		def fpga = chipstring.split("W")[1].split("F")[1]
+		print ("using chip ${chipstring} of wafer ${wafer} and fpga ${fpga}")
 	}
 }
 
@@ -165,13 +173,10 @@ setJobDescription("""
 </p>
 <p>
   <h1>Summary of the last few runs</h1>
-  <i>still to come</i>
-  <br />
   <img width=600 src="lastSuccessfulBuild/artifact/fastAndDeep/src/py/jenkinssummary_yin_yang.png"/>
 </p>
 <p>
   <h1>Stats of last stable run</h1>
-  <br />
   <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_300/yin_yang_classification_train.png"/>
   <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_300/yin_yang_classification_test.png"/>
   <br />
