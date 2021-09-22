@@ -4,6 +4,7 @@ import datetime
 import json
 import matplotlib as mpl
 import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
 import numpy as np
 import os
 import os.path as osp
@@ -119,12 +120,28 @@ def plot_summary():
     ax.axhline(1, color='black')
     ax.axhline(5, color='black')
     ax.axhline(30, color='black')
-    ax.legend(
+
+    plt.rcParams['legend.handlelength'] = 1
+    plt.rcParams['legend.handleheight'] = 1.125
+
+    legend1 = ax.legend(
         handles=[
             mlines.Line2D([], [], color='black', lw=0, marker='x', label='test'),
             mlines.Line2D([], [], color='black', lw=0, marker='3', label='train'),
         ],
-        loc='lower left')
+        loc='upper left',
+        fontsize='large', frameon=True, facecolor="lightgray")
+    ax.add_artist(legend1)
+    if args.setup == 'all':
+        legend2 = ax.legend(
+            handles=[
+                # mpatches.Patch(color=f"C{i}", label=setup)
+                mpatches.Patch(color=f"C{i}", label=setup)
+                for i, setup in enumerate(all_setups)
+            ],
+            loc='lower left',
+            fontsize="small", frameon=True, facecolor="lightgray")
+        ax.add_artist(legend2)
     ax.set_yticks([1, 5, 10, 30])
     ax.set_yticklabels([1, 5, 10, 30])
     ax.set_xticks(xvals)
