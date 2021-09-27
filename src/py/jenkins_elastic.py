@@ -146,11 +146,10 @@ def plot_summary():
     ax.set_yticklabels([1, 5, 10, 30])
     ax.set_xticks(xvals)
     ax.set_xticklabels(
-        ["#{} ({}){}".format(buildNo,
-                             datetime.datetime.fromtimestamp(
-                                 float(all_data[str(buildNo)]["date"])).strftime('%d-%m'),
-                             f"\n{all_data[str(buildNo)]['HX']}" if args.setup == 'all' else '',
-                             )
+        ["#{} ({})".format(buildNo,
+                           datetime.datetime.fromtimestamp(
+                               float(all_data[str(buildNo)]["date"])).strftime('%d-%m'),
+                           )
          for buildNo in builds],
         rotation=-90)
     if args.setup == 'all':
