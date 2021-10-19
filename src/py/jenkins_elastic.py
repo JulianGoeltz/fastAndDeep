@@ -8,6 +8,7 @@ import matplotlib.patches as mpatches
 import numpy as np
 import os
 import os.path as osp
+import re
 import sys
 import time
 import yaml
@@ -16,6 +17,9 @@ import matplotlib.pyplot as plt
 
 
 json_filename = '/jenkins/results/p_jg_FastAndDeep/data.json'
+ms_train = 'x'
+ms_test = '+'
+ms_testInference= '3'
 
 
 def get_data(dirname, dataset, datatype):
@@ -38,9 +42,17 @@ def write_new_data():
     with open(osp.join(path, "config.yaml")) as f:
         dataset = yaml.safe_load(f)['dataset']
     # find out stats of last run
+    pattern = 'the accuracy is ([0-9.]*)'
+    inference_accs = []
+    with open('inference.out', 'r') as f:
+        for line in f:
+            if re.search(pattern, line):
+                inference_accs.append(float(re.findall(pattern, line)[0]))
+
     data = {
         'accuracy_test': get_data(path, dataset, 'test'),
         'accuracy_train': get_data(path, dataset, 'train'),
+        'accuracy_test_inference': inference_accs,
     }
 
     BUILD_NUMBER = os.environ.get("BUILD_NUMBER", "0")
@@ -91,6 +103,10 @@ def plot_summary():
     for buildNo in builds:
         all_data[str(buildNo)]['error_train'] = 100 - 100 * all_data[str(buildNo)]['accuracy_train']
         all_data[str(buildNo)]['error_test'] = 100 - 100 * all_data[str(buildNo)]['accuracy_test']
+        if 'accuracy_test_inference' in all_data[str(buildNo)]:
+            all_data[str(buildNo)][
+                'error_test_inference'
+            ] = 100 - np.array(all_data[str(buildNo)]['accuracy_test_inference'])
 
     print(f"plotting {len(builds)} builds: {builds}")
 
@@ -100,15 +116,28 @@ def plot_summary():
         for i, setup in enumerate(all_setups):
             indices = [all_data[str(buildNo)]['HX'] == setup for buildNo in builds]
             ax.plot(xvals[indices], [all_data[str(buildNo)]['error_train'] for buildNo in builds[indices]],
-                    label="train set", ls='', marker='3', color=f"C{i}")
+                    label="train set", ls='', marker=ms_train, color=f"C{i}")
             ax.plot(xvals[indices], [all_data[str(buildNo)]['error_test'] for buildNo in builds[indices]],
-                    label="test set", ls='', marker='x', color=f"C{i}")
+                    label="test set", ls='', marker=ms_test, color=f"C{i}")
+            inference_indices = [(all_data[str(buildNo)]['HX'] == setup and
+                                  'error_test_inference' in all_data[str(buildNo)])
+                                 for buildNo in builds]
+            ax.plot(xvals[inference_indices],
+                    [all_data[str(buildNo)]['error_test_inference'] for buildNo in builds[indices]
+                     if 'error_test_inference' in all_data[str(buildNo)]],
+                    label="test set inference", ls='', marker=ms_testInference, color=f"C{i}")
 
     else:
         ax.plot(xvals, [all_data[str(buildNo)]['error_train'] for buildNo in builds],
-                label="train set", color='black', ls='', marker='3')
+                label="train set", color='black', ls='', marker=ms_train)
         ax.plot(xvals, [all_data[str(buildNo)]['error_test'] for buildNo in builds],
-                label="test set", color='black', ls='', marker='x')
+                label="test set", color='black', ls='', marker=ms_test)
+        inference_indices = ['error_test_inference' in all_data[str(buildNo)]
+                             for buildNo in builds]
+        ax.plot(xvals[inference_indices],
+                [all_data[str(buildNo)]['error_test_inference'] for buildNo in builds
+                 if 'error_test_inference' in all_data[str(buildNo)]],
+                label="test set inference", ls='', marker=ms_testInference, color=f"black")
 
     # formatting
     ax.set_yscale('log')
@@ -129,8 +158,9 @@ def plot_summary():
 
     legend1 = ax.legend(
         handles=[
-            mlines.Line2D([], [], color='black', lw=0, marker='x', label='test'),
-            mlines.Line2D([], [], color='black', lw=0, marker='3', label='train'),
+            mlines.Line2D([], [], color='black', lw=0, marker=ms_test, label='test'),
+            mlines.Line2D([], [], color='black', lw=0, marker=ms_train, label='train'),
+            mlines.Line2D([], [], color='black', lw=0, marker=ms_testInference, label='test inference'),
             mlines.Line2D([], [], color='grey', lw=1, ls=':', marker='', label='max error for success'),
         ],
         loc='upper left',
