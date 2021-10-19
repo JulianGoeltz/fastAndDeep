@@ -1,6 +1,6 @@
 @Library("jenlib") _
 
-addBuildParameter(string(name: 'chipstring', defaultValue: "W66F0",
+addBuildParameter(string(name: 'chipstring', defaultValue: "random",
 		         description: 'The chip on which the experiments should be executed (in the form `W66F3`). If this string is "random", a random free chip will be used.'))
 
 try {
@@ -50,8 +50,8 @@ stage("Checkout and determine chip") {
 		if  (! chipstring.matches(/W[0-9]+F[0,3]/)) {
 			print ("The given chip string does not match the regex /W[0-9]+F[0,3]/ using tools-slurm to find a random free chip")
 			withModules(modules: ["tools-slurm"]) {
-				chipstring = jesh(script: "find_free_cube.py --random",
-					returnStdout: true)
+				chipstring = jesh(script: "find_free_chip.py --random",
+					returnStdout: true).trim()
 			}
 		}
 		wafer = Integer.parseInt(chipstring.split("W")[1].split("F")[0])
