@@ -20,6 +20,7 @@ json_filename = '/jenkins/results/p_jg_FastAndDeep/data.json'
 ms_train = 'x'
 ms_test = '+'
 ms_testInference= '3'
+max_allowed_error = 8
 
 
 def get_data(dirname, dataset, datatype):
@@ -146,12 +147,13 @@ def plot_summary():
         ax.set_title("train and test errors")
     else:
         ax.set_title(f"train and test errors (on {args.setup})")
-    ax.axhline(1, color='black')
-    ax.axhline(5, color='black')
-    ax.axhline(30, color='black')
+
+    ax.axhline(1, color='grey', lw=0.5)
+    ax.axhline(5, color='grey', lw=0.5)
+    ax.axhline(10, color='grey', lw=0.5)
 
     # fail line
-    ax.axhline(8, color='grey', ls=':')
+    ax.axhline(max_allowed_error, color='grey', ls=':')
 
     plt.rcParams['legend.handlelength'] = 1
     plt.rcParams['legend.handleheight'] = 1.125
@@ -164,7 +166,8 @@ def plot_summary():
             mlines.Line2D([], [], color='grey', lw=1, ls=':', marker='', label='max error for success'),
         ],
         loc='upper left',
-        fontsize='large', frameon=True, facecolor="lightgray")
+        # fontsize='large',
+        frameon=True, facecolor="lightgray")
     ax.add_artist(legend1)
     if args.setup == 'all':
         legend2 = ax.legend(
@@ -176,8 +179,17 @@ def plot_summary():
             loc='lower left',
             fontsize="small", frameon=True, facecolor="lightgray")
         ax.add_artist(legend2)
-    ax.set_yticks([1, 5, 10, 30])
-    ax.set_yticklabels([1, 5, 10, 30])
+
+    ax.set_ylim(2.5, 15)
+    ax.axes.get_yaxis().set_ticks([])
+    ax.axes.get_yaxis().set_ticks([], minor=True)
+    ytickminors = list(range(3, 10)) + [15]
+    ytickminorlabels = [3, 5, max_allowed_error, 15]  # [1, 5, 10, 30]
+    ax.set_yticks(ytickminors, minor=True)
+    ax.set_yticklabels([i if i in ytickminorlabels else "" for i in ytickminors], minor=True)
+    ax.set_yticks([10])
+    ax.set_yticklabels([10])
+
     ax.set_xticks(xvals)
     ax.set_xticklabels(
         ["#{} ({})".format(buildNo,
