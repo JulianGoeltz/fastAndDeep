@@ -129,7 +129,8 @@ stage("inference") {
 		inSingularity(app: "visionary-dls") {
 			withModules(modules: ["localdir"]) {
 				jesh('[ "$(ls fastAndDeep/experiment_results/ | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/ | tail -n 1) fastAndDeep/experiment_results/lastrun')
-				jesh('cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py inference ../experiment_results/lastrun | tee inference.out')
+				// runs inference for 3 times
+				jesh('cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; (python experiment.py inference ../experiment_results/lastrun; python experiment.py inference ../experiment_results/lastrun; python experiment.py inference ../experiment_results/lastrun) | tee inference.out')
 			}
 		}
 	}
@@ -146,7 +147,8 @@ stage("finalisation") {
 		archiveArtifacts 'fastAndDeep/src/py/jenkinssummary_yin_yang.png'
 		// test whether accuracy is too low
 		inSingularity(app: "visionary-dls") {
-			jesh('cd fastAndDeep/src; (( $(echo "92 > $(grep -oP "the accuracy is \\K[0-9.]*" inference.out)" | bc -l) )) && echo "accuracy too bad" && exit 1 || exit 0')
+			// gets the mean of all accuracies and compares it with hard coded 92
+			jesh('cd fastAndDeep/src; (( $(echo "92 > $(grep -oP "the accuracy is \\K[0-9.]*" inference.out | jq -s add/length)" | bc -l) )) && echo "accuracy too bad" && exit 1 || exit 0')
 		}
 	}
 }
