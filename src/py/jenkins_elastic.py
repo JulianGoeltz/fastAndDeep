@@ -70,7 +70,7 @@ def plot_summary():
     # plot all the last runs
     parser = argparse.ArgumentParser()
     # all those are expected to be counted from the end
-    parser.add_argument('--firstBuild', default=15, type=int)
+    parser.add_argument('--firstBuild', default=30, type=int)
     parser.add_argument('--lastBuild', default=0, type=int)
     parser.add_argument('--dataset', default='yin_yang', type=str)
     parser.add_argument('--setup', default='all', type=str)
@@ -114,12 +114,15 @@ def plot_summary():
     ax.set_yscale('log')
     ax.set_ylabel('error [%]')
     if args.setup == 'all':
-        ax.set_title("train and test accuracies")
+        ax.set_title("train and test errors")
     else:
-        ax.set_title(f"train and test accuracies (on {args.setup})")
+        ax.set_title(f"train and test errors (on {args.setup})")
     ax.axhline(1, color='black')
     ax.axhline(5, color='black')
     ax.axhline(30, color='black')
+
+    # fail line
+    ax.axhline(8, color='grey', ls=':')
 
     plt.rcParams['legend.handlelength'] = 1
     plt.rcParams['legend.handleheight'] = 1.125
@@ -128,6 +131,7 @@ def plot_summary():
         handles=[
             mlines.Line2D([], [], color='black', lw=0, marker='x', label='test'),
             mlines.Line2D([], [], color='black', lw=0, marker='3', label='train'),
+            mlines.Line2D([], [], color='grey', lw=1, ls=':', marker='', label='max error for success'),
         ],
         loc='upper left',
         fontsize='large', frameon=True, facecolor="lightgray")
@@ -151,12 +155,12 @@ def plot_summary():
                                float(all_data[str(buildNo)]["date"])).strftime('%d-%m'),
                            )
          for buildNo in builds],
-        rotation=-90)
+        rotation=-90, fontsize="small")
     if args.setup == 'all':
         for ticklabel, buildNo in zip(ax.get_xticklabels(), builds):
             index_of_setup = all_setups.index(all_data[str(buildNo)]['HX'])
             ticklabel.set_color(f"C{index_of_setup}")
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])  # due to suptitle
+    fig.tight_layout()  # rect=[0, 0.00, 1, 1.99])  # due to suptitle
 
     # saving
     fig.savefig(f"jenkinssummary_{args.dataset}.png")
