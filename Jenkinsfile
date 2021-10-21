@@ -61,7 +61,7 @@ stage("Checkout and determine chip") {
 }
 
 stage("create calib") {
-	onSlurmResource(partition: "jenkins",
+	onSlurmResource(partition: "cube",
 			"cpus-per-task": 8,
 			wafer: "${wafer}",
 			"fpga-without": "${fpga}",
@@ -105,7 +105,7 @@ stage("get datasets") {
 }
 
 stage("training") {
-	onSlurmResource(partition: "jenkins",
+	onSlurmResource(partition: "cube",
 			"cpus-per-task": 8,
 			wafer: "${wafer}",
 			"fpga-without": "${fpga}",
@@ -120,7 +120,7 @@ stage("training") {
 }
 
 stage("inference") {
-	onSlurmResource(partition: "jenkins",
+	onSlurmResource(partition: "cube",
 			"cpus-per-task": 8,
 			wafer: "${wafer}",
 			"fpga-without": "${fpga}",
