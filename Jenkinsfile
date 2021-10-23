@@ -1,10 +1,21 @@
-@Library("jenlib") _
+@Library("jenlib")
+
+String notificationChannel = "#time-to-first-spike-on-hx"
 
 addBuildParameter(string(name: 'chipstring', defaultValue: "random",
 		         description: 'The chip on which the experiments should be executed (in the form `W66F3`). If this string is "random", a random free chip will be used.'))
 
+
+def jeshWithLoggedStds(String script, String filenameStds, String filenameStderr) {
+    // pipefail to make sure 'jesh' fails if the actual script fails and it is not covered by tee
+    // using 3>&1 1>&2- 2>&3- in order to switch stdout and stderr to have it both available for the notification and in the chat
+    // according to https://stackoverflow.com/questions/1507816/with-bash-how-can-i-pipe-standard-error-into-another-process
+    return jesh(script: "set -o pipefail; ( ( ${script} ) 3>&1 1>&2- 2>&3- ) | tee ${filenameStderr} 2>&1 | tee ${filenameStds} ")
+}
+
+String tmpErrorMsg = ""
+
 try {
-timeout(time: 180, unit: "MINUTES") {
 withCcache() {
 withModules(modules: ["waf", "ppu-toolchain"]) {
 
@@ -61,19 +72,39 @@ stage("Checkout and determine chip") {
 }
 
 stage("create calib") {
-	onSlurmResource(partition: "cube",
-			"cpus-per-task": 8,
-			wafer: "${wafer}",
-			"fpga-without": "${fpga}",
-			time: "10:0",
-			mem: "8G") {
-		inSingularity(app: "visionary-dls") {
-			withModules(modules: ["localdir"]) {
-				jesh("module list")
-				jesh("module show localdir")
-				jesh("cd model-hx-strobe/experiments/yinyang; python generate_calibration.py --output ../../../fastAndDeep/src/calibrations/tmp_jenkins.npz")
+	try {
+		onSlurmResource(partition: "cube",
+				"cpus-per-task": 8,
+				wafer: "${wafer}",
+				"fpga-without": "${fpga}",
+				time: "10:0",
+				mem: "8G") {
+			inSingularity(app: "visionary-dls") {
+				withModules(modules: ["localdir"]) {
+					jesh("module list")
+					jesh("module show localdir")
+					jeshWithLoggedStds(
+						"cd model-hx-strobe/experiments/yinyang; python generate_calibration.py --output ../../../fastAndDeep/src/calibrations/tmp_jenkins.npz",
+						"tmp_stds.log",
+						"tmp_stderr.log"
+					)
+				}
 			}
 		}
+	} catch (Throwable t) {
+		runOnSlave(label: "frontend") {
+			tmpErrorMsg = readFile('tmp_stderr.log')
+		}
+		if ( tmpErrorMsg != "" ) {
+			tmpErrorMsg = "```\n${tmpErrorMsg}\n```"
+		}
+		mattermostSend(
+			channel: notificationChannel,
+			text: "Jenkins build `${env.JOB_NAME}` failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
+			message: "${env.BUILD_URL}",
+			failOnError: true,
+			endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
+		throw t
 	}
 }
 
@@ -97,7 +128,9 @@ stage("get datasets") {
 	runOnSlave(label: "frontend") {
 		inSingularity(app: "visionary-dls") {
 			dir("fastAndDeep/src") {
-				jesh("python -c \"import torchvision; print(torchvision.datasets.MNIST('../data/mnist', train=True, download=True))\"")
+				// downloads MNIST (not used at the moment)
+				// jesh("python -c \"import torchvision; print(torchvision.datasets.MNIST('../data/mnist', train=True, download=True))\"")
+				// downloads YY set
 				jesh("git submodule update --init")
 			}
 		}
@@ -105,6 +138,13 @@ stage("get datasets") {
 }
 
 stage("training") {
+	//// potentially shorten the training, for testing purposes
+	//runOnSlave(label: "frontend") {
+	//	dir("fastAndDeep/experiment_configs") {
+	//		jesh("sed -i 's/epoch_number: 300/epoch_number: 10/' yin_yang_hx.yaml")
+	//		jesh("sed -i 's/epoch_snapshots: \\[1, 5, 10, 15, 50, 100, 150, 200, 300\\]/epoch_snapshots: \\[1 \\]/' yin_yang_hx.yaml")
+	//	}
+	//}
 	onSlurmResource(partition: "cube",
 			"cpus-per-task": 8,
 			wafer: "${wafer}",
@@ -113,6 +153,8 @@ stage("training") {
 			mem: "16G") {
 		inSingularity(app: "visionary-dls") {
 			withModules(modules: ["localdir"]) {
+				// to get all information about the executing node
+				jesh('env')
 				jesh('cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py train ../experiment_configs/yin_yang_hx.yaml')
 			}
 		}
@@ -120,19 +162,39 @@ stage("training") {
 }
 
 stage("inference") {
-	onSlurmResource(partition: "cube",
-			"cpus-per-task": 8,
-			wafer: "${wafer}",
-			"fpga-without": "${fpga}",
-			time: "10:0",
-			mem: "16G") {
-		inSingularity(app: "visionary-dls") {
-			withModules(modules: ["localdir"]) {
-				jesh('[ "$(ls fastAndDeep/experiment_results/ | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/ | tail -n 1) fastAndDeep/experiment_results/lastrun')
-				// runs inference for 3 times
-				jesh('cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; (python experiment.py inference ../experiment_results/lastrun; python experiment.py inference ../experiment_results/lastrun; python experiment.py inference ../experiment_results/lastrun) | tee inference.out')
+	try {
+		onSlurmResource(partition: "cube",
+				"cpus-per-task": 8,
+				wafer: "${wafer}",
+				"fpga-without": "${fpga}",
+				time: "10:0",
+				mem: "16G") {
+			inSingularity(app: "visionary-dls") {
+				withModules(modules: ["localdir"]) {
+					jesh('[ "$(ls fastAndDeep/experiment_results/ | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/ | tail -n 1) fastAndDeep/experiment_results/lastrun')
+					// runs inference for 3 times
+					jeshWithLoggedStds(
+						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; (python experiment.py inference ../experiment_results/lastrun; python experiment.py inference ../experiment_results/lastrun; python experiment.py inference ../experiment_results/lastrun)',
+						"inference.out",
+						"tmp_stderr.log"
+					)
+				}
 			}
 		}
+	} catch (Throwable t) {
+		runOnSlave(label: "frontend") {
+			tmpErrorMsg = readFile('tmp_stderr.log')
+		}
+		if ( tmpErrorMsg != "" ) {
+			tmpErrorMsg = "```\n${tmpErrorMsg}\n```"
+		}
+		mattermostSend(
+			channel: notificationChannel,
+			text: "Jenkins build `${env.JOB_NAME}` failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
+			message: "${env.BUILD_URL}",
+			failOnError: true,
+			endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
+		throw t
 	}
 }
 
@@ -146,9 +208,29 @@ stage("finalisation") {
 		}
 		archiveArtifacts 'fastAndDeep/src/py/jenkinssummary_yin_yang.png'
 		// test whether accuracy is too low
-		inSingularity(app: "visionary-dls") {
-			// gets the mean of all accuracies and compares it with hard coded 92
-			jesh('cd fastAndDeep/src; (( $(echo "92 > $(grep -oP "the accuracy is \\K[0-9.]*" inference.out | jq -s add/length)" | bc -l) )) && echo "accuracy too bad" && exit 1 || exit 0')
+		try {
+			inSingularity(app: "visionary-dls") {
+				// gets the mean of all accuracies and compares it with hard coded 92
+				jeshWithLoggedStds(
+					'(( $(echo "92 > $(grep -oP "the accuracy is \\K[0-9.]*" inference.out | jq -s add/length)" | bc -l) )) && echo "accuracy too bad" && exit 1 || exit 0',
+					"tmp_stds.out",
+					"tmp_stderr.log"
+				)
+			}
+		} catch (Throwable t) {
+			runOnSlave(label: "frontend") {
+				tmpErrorMsg = readFile('tmp_stderr.log')
+			}
+			if ( tmpErrorMsg != "" ) {
+				tmpErrorMsg = "```\n${tmpErrorMsg}\n```"
+			}
+			mattermostSend(
+				channel: notificationChannel,
+				text: "Jenkins build `${env.JOB_NAME}` failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
+					message: "${env.BUILD_URL}",
+					failOnError: true,
+					endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
+		throw t
 		}
 	}
 }
@@ -156,15 +238,14 @@ stage("finalisation") {
 
 }
 }
-}
 
 } catch (Throwable t) {
-	notifyFailure(mattermostChannel: "#hicann-dls-users")
+	notifyFailure(mattermostChannel: notificationChannel)
 	throw t
 }
 
 if (currentBuild.currentResult != "SUCCESS") {
-	notifyFailure(mattermostChannel: "#hicann-dls-users")
+	notifyFailure(mattermostChannel: notificationChannel)
 }
 
 /**
