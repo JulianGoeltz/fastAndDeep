@@ -100,8 +100,7 @@ stage("create calib") {
 		}
 		mattermostSend(
 			channel: notificationChannel,
-			text: "Jenkins build `${env.JOB_NAME}` failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
-			message: "${env.BUILD_URL}",
+			text: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
 			failOnError: true,
 			endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 		throw t
@@ -190,8 +189,7 @@ stage("inference") {
 		}
 		mattermostSend(
 			channel: notificationChannel,
-			text: "Jenkins build `${env.JOB_NAME}` failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
-			message: "${env.BUILD_URL}",
+			text: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
 			failOnError: true,
 			endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 		throw t
@@ -226,10 +224,9 @@ stage("finalisation") {
 			}
 			mattermostSend(
 				channel: notificationChannel,
-				text: "Jenkins build `${env.JOB_NAME}` failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
-					message: "${env.BUILD_URL}",
-					failOnError: true,
-					endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
+				text: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
+				failOnError: true,
+				endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 		throw t
 		}
 	}
@@ -240,12 +237,20 @@ stage("finalisation") {
 }
 
 } catch (Throwable t) {
-	notifyFailure(mattermostChannel: notificationChannel)
+	mattermostSend(
+		channel: notificationChannel,
+		text: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```",
+		failOnError: true,
+		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 	throw t
 }
 
 if (currentBuild.currentResult != "SUCCESS") {
-	notifyFailure(mattermostChannel: notificationChannel)
+	mattermostSend(
+		channel: notificationChannel,
+		text: "Jenkins finished unsuccessfully [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```",
+		failOnError: true,
+		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 }
 
 /**

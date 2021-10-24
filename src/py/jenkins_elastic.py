@@ -45,7 +45,7 @@ def write_new_data():
     # find out stats of last run
     pattern = 'the accuracy is ([0-9.]*)'
     inference_accs = []
-    with open('../inference.out', 'r') as f:
+    with open('../../../inference.out', 'r') as f:
         for line in f:
             if re.search(pattern, line):
                 inference_accs.append(float(re.findall(pattern, line)[0]))
