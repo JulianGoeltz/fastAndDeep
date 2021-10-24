@@ -49,6 +49,12 @@ def write_new_data():
         for line in f:
             if re.search(pattern, line):
                 inference_accs.append(float(re.findall(pattern, line)[0]))
+    if len(inference_accs) == 0:
+        print("# file print for debug")
+        with open('../../../inference.out', 'r') as f:
+            for line in f:
+                print(line)
+        raise IOException("did not find any printed accuracies in the file, see printed contents above")
 
     data = {
         'accuracy_test': get_data(path, dataset, 'test'),
@@ -121,11 +127,19 @@ def plot_summary():
             ax.plot(xvals[indices], [all_data[str(buildNo)]['error_test'] for buildNo in builds[indices]],
                     label="test set", ls='', marker=ms_test, color=f"C{i}")
             inference_indices = [(all_data[str(buildNo)]['HX'] == setup and
-                                  'error_test_inference' in all_data[str(buildNo)])
+                                  'error_test_inference' in all_data[str(buildNo)] and
+                                  len(all_data[str(buildNo)]['error_test_inference']) > 0)
                                  for buildNo in builds]
+            print(i, setup)
+            print(inference_indices)
+            print(xvals[inference_indices])
+            print([all_data[str(buildNo)]['error_test_inference'] for buildNo in builds[indices]
+                   if 'error_test_inference' in all_data[str(buildNo)]])
+
             ax.plot(xvals[inference_indices],
                     [all_data[str(buildNo)]['error_test_inference'] for buildNo in builds[indices]
-                     if 'error_test_inference' in all_data[str(buildNo)]],
+                     if ('error_test_inference' in all_data[str(buildNo)] and
+                         len(all_data[str(buildNo)]['error_test_inference']) > 0)],
                     label="test set inference", ls='', marker=ms_testInference, color=f"C{i}")
 
     else:
@@ -133,11 +147,13 @@ def plot_summary():
                 label="train set", color='black', ls='', marker=ms_train)
         ax.plot(xvals, [all_data[str(buildNo)]['error_test'] for buildNo in builds],
                 label="test set", color='black', ls='', marker=ms_test)
-        inference_indices = ['error_test_inference' in all_data[str(buildNo)]
+        inference_indices = [('error_test_inference' in all_data[str(buildNo)] and
+                              len(all_data[str(buildNo)]['error_test_inference']) > 0)
                              for buildNo in builds]
         ax.plot(xvals[inference_indices],
                 [all_data[str(buildNo)]['error_test_inference'] for buildNo in builds
-                 if 'error_test_inference' in all_data[str(buildNo)]],
+                 if ('error_test_inference' in all_data[str(buildNo)] and
+                     len(all_data[str(buildNo)]['error_test_inference']) > 0)],
                 label="test set inference", ls='', marker=ms_testInference, color=f"black")
 
     # formatting
