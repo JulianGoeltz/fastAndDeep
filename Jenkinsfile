@@ -10,7 +10,7 @@ def jeshWithLoggedStds(String script, String filenameStds, String filenameStderr
     // pipefail to make sure 'jesh' fails if the actual script fails and it is not covered by tee
     // using 3>&1 1>&2- 2>&3- in order to switch stdout and stderr to have it both available for the notification and in the chat
     // according to https://stackoverflow.com/questions/1507816/with-bash-how-can-i-pipe-standard-error-into-another-process
-    return jesh(script: "set -o pipefail; ( ( ${script} ) 3>&1 1>&2- 2>&3- ) | tee ${filenameStderr} 2>&1 | tee ${filenameStds} ")
+    return jesh(script: "set -o pipefail; ( ( ( ${script} ) 3>&1 1>&2- 2>&3- ) | tee ${filenameStderr} ) 2>&1 | tee ${filenameStds} ")
 }
 
 String tmpErrorMsg = ""
@@ -100,7 +100,7 @@ stage("create calib") {
 		}
 		mattermostSend(
 			channel: notificationChannel,
-			text: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
+			message: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
 			failOnError: true,
 			endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 		throw t
@@ -189,7 +189,7 @@ stage("inference") {
 		}
 		mattermostSend(
 			channel: notificationChannel,
-			text: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
+			message: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
 			failOnError: true,
 			endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 		throw t
@@ -224,7 +224,7 @@ stage("finalisation") {
 			}
 			mattermostSend(
 				channel: notificationChannel,
-				text: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
+				message: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
 				failOnError: true,
 				endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 		throw t
@@ -239,7 +239,7 @@ stage("finalisation") {
 } catch (Throwable t) {
 	mattermostSend(
 		channel: notificationChannel,
-		text: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```",
+		message: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```",
 		failOnError: true,
 		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 	throw t
@@ -248,7 +248,7 @@ stage("finalisation") {
 if (currentBuild.currentResult != "SUCCESS") {
 	mattermostSend(
 		channel: notificationChannel,
-		text: "Jenkins finished unsuccessfully [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```",
+		message: "Jenkins finished unsuccessfully [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```",
 		failOnError: true,
 		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 }

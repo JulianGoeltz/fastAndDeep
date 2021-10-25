@@ -54,7 +54,7 @@ def write_new_data():
         with open('../../../inference.out', 'r') as f:
             for line in f:
                 print(line)
-        raise IOException("did not find any printed accuracies in the file, see printed contents above")
+        raise IOError("did not find any printed accuracies in the file, see printed contents above")
 
     data = {
         'accuracy_test': get_data(path, dataset, 'test'),
