@@ -130,11 +130,6 @@ def plot_summary():
                                   'error_test_inference' in all_data[str(buildNo)] and
                                   len(all_data[str(buildNo)]['error_test_inference']) > 0)
                                  for buildNo in builds]
-            print(i, setup)
-            print(inference_indices)
-            print(xvals[inference_indices])
-            print([all_data[str(buildNo)]['error_test_inference'] for buildNo in builds[indices]
-                   if 'error_test_inference' in all_data[str(buildNo)]])
 
             ax.plot(xvals[inference_indices],
                     [all_data[str(buildNo)]['error_test_inference'] for buildNo in builds[indices]

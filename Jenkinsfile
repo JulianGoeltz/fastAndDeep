@@ -6,11 +6,11 @@ addBuildParameter(string(name: 'chipstring', defaultValue: "random",
 		         description: 'The chip on which the experiments should be executed (in the form `W66F3`). If this string is "random", a random free chip will be used.'))
 
 
-def jeshWithLoggedStds(String script, String filenameStds, String filenameStderr) {
+def jeshWithLoggedStds(String script, String filenameStdout, String filenameStderr) {
     // pipefail to make sure 'jesh' fails if the actual script fails and it is not covered by tee
     // using 3>&1 1>&2- 2>&3- in order to switch stdout and stderr to have it both available for the notification and in the chat
     // according to https://stackoverflow.com/questions/1507816/with-bash-how-can-i-pipe-standard-error-into-another-process
-    return jesh(script: "set -o pipefail; ( ( ( ${script} ) 3>&1 1>&2- 2>&3- ) | tee ${filenameStderr} ) 2>&1 | tee ${filenameStds} ")
+    return jesh(script: "set -o pipefail; ( ( ( ${script} | tee ${filenameStdout} ) 3>&1 1>&2- 2>&3- ) | tee ${filenameStderr} ) ")
 }
 
 String tmpErrorMsg = ""
@@ -85,7 +85,7 @@ stage("create calib") {
 					jesh("module show localdir")
 					jeshWithLoggedStds(
 						"cd model-hx-strobe/experiments/yinyang; python generate_calibration.py --output ../../../fastAndDeep/src/calibrations/tmp_jenkins.npz",
-						"tmp_stds.log",
+						"tmp_stdout.log",
 						"tmp_stderr.log"
 					)
 				}
@@ -144,19 +144,39 @@ stage("training") {
 	//		jesh("sed -i 's/epoch_snapshots: \\[1, 5, 10, 15, 50, 100, 150, 200, 300\\]/epoch_snapshots: \\[1 \\]/' yin_yang_hx.yaml")
 	//	}
 	//}
-	onSlurmResource(partition: "cube",
-			"cpus-per-task": 8,
-			wafer: "${wafer}",
-			"fpga-without": "${fpga}",
-			time: "5:0:0",
-			mem: "16G") {
-		inSingularity(app: "visionary-dls") {
-			withModules(modules: ["localdir"]) {
-				// to get all information about the executing node
-				jesh('env')
-				jesh('cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py train ../experiment_configs/yin_yang_hx.yaml')
+	try {
+		onSlurmResource(partition: "cube",
+				"cpus-per-task": 8,
+				wafer: "${wafer}",
+				"fpga-without": "${fpga}",
+				time: "5:0:0",
+				mem: "16G") {
+			inSingularity(app: "visionary-dls") {
+				withModules(modules: ["localdir"]) {
+					// to get all information about the executing node
+					jesh('env')
+					jesh('cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py train ../experiment_configs/yin_yang_hx.yaml')
+					jeshWithLoggedStds(
+						"cd model-hx-strobe/experiments/yinyang; python generate_calibration.py --output ../../../fastAndDeep/src/calibrations/tmp_jenkins.npz",
+						"tmp_stdout.log",
+						"tmp_stderr.log"
+					)
+				}
 			}
 		}
+	} catch (Throwable t) {
+		runOnSlave(label: "frontend") {
+			tmpErrorMsg = readFile('tmp_stderr.log')
+		}
+		if ( tmpErrorMsg != "" ) {
+			tmpErrorMsg = "```\n${tmpErrorMsg}\n```"
+		}
+		mattermostSend(
+			channel: notificationChannel,
+			message: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
+			failOnError: true,
+			endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
+		throw t
 	}
 }
 
@@ -211,7 +231,7 @@ stage("finalisation") {
 				// gets the mean of all accuracies and compares it with hard coded 92
 				jeshWithLoggedStds(
 					'(( $(echo "92 > $(grep -oP "the accuracy is \\K[0-9.]*" inference.out | jq -s add/length)" | bc -l) )) && echo "accuracy too bad" && exit 1 || exit 0',
-					"tmp_stds.out",
+					"tmp_stdout.out",
 					"tmp_stderr.log"
 				)
 			}
