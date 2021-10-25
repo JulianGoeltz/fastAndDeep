@@ -155,9 +155,8 @@ stage("training") {
 				withModules(modules: ["localdir"]) {
 					// to get all information about the executing node
 					jesh('env')
-					jesh('cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py train ../experiment_configs/yin_yang_hx.yaml')
 					jeshWithLoggedStds(
-						"cd model-hx-strobe/experiments/yinyang; python generate_calibration.py --output ../../../fastAndDeep/src/calibrations/tmp_jenkins.npz",
+						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py train ../experiment_configs/yin_yang_hx.yaml',
 						"tmp_stdout.log",
 						"tmp_stderr.log"
 					)
