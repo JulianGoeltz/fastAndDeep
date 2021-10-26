@@ -30,5 +30,5 @@
 >             halco.CapMemRowOnCapMemBlock.i_bias_synin_exc_gm: syn_exc,
 >             halco.CapMemRowOnCapMemBlock.i_bias_synin_inh_gm: syn_inh,
 >         })
->         builder = calix.common.helpers.wait_for_us(builder, calix.constants.capmem_level_off_time)
+>         builder = calix.common.helpers.wait(builder, calix.constants.capmem_level_off_time)
 >         calix.common.base.run(self._connection, builder)
