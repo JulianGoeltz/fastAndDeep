@@ -10,7 +10,7 @@ def jeshWithLoggedStds(String script, String filenameStdout, String filenameStde
     // pipefail to make sure 'jesh' fails if the actual script fails and it is not covered by tee
     // using 3>&1 1>&2- 2>&3- in order to switch stdout and stderr to have it both available for the notification and in the chat
     // according to https://stackoverflow.com/questions/1507816/with-bash-how-can-i-pipe-standard-error-into-another-process
-    return jesh(script: "set -o pipefail; ( ( ( ${script} | tee ${filenameStdout} ) 3>&1 1>&2- 2>&3- ) | tee ${filenameStderr} ) ")
+    return jesh(script: "set -o pipefail; ( ( ( ${script} ) | tee ${filenameStdout} ) 3>&1 1>&2- 2>&3- ) | tee ${filenameStderr} ")
 }
 
 String tmpErrorMsg = ""
@@ -142,6 +142,7 @@ stage("training") {
 	//	dir("fastAndDeep/experiment_configs") {
 	//		jesh("sed -i 's/epoch_number: 300/epoch_number: 10/' yin_yang_hx.yaml")
 	//		jesh("sed -i 's/epoch_snapshots: \\[1, 5, 10, 15, 50, 100, 150, 200, 300\\]/epoch_snapshots: \\[1 \\]/' yin_yang_hx.yaml")
+	//		jesh("sed -i 's/^    write_new_data/    # write_new_data()/' src/py/jenkins_elastic.py")
 	//	}
 	//}
 	try {
