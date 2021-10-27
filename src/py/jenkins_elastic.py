@@ -17,9 +17,10 @@ import matplotlib.pyplot as plt
 
 
 json_filename = '/jenkins/results/p_jg_FastAndDeep/data.json'
-ms_train = 'x'
-ms_test = '+'
-ms_testInference= '3'
+m_train = 'x'
+m_test = '+'
+m_testInference = '3'
+ms_testInference = 5
 max_allowed_error = 8
 
 
@@ -123,9 +124,9 @@ def plot_summary():
         for i, setup in enumerate(all_setups):
             indices = [all_data[str(buildNo)]['HX'] == setup for buildNo in builds]
             ax.plot(xvals[indices], [all_data[str(buildNo)]['error_train'] for buildNo in builds[indices]],
-                    label="train set", ls='', marker=ms_train, color=f"C{i}")
+                    label="train set", ls='', marker=m_train, color=f"C{i}")
             ax.plot(xvals[indices], [all_data[str(buildNo)]['error_test'] for buildNo in builds[indices]],
-                    label="test set", ls='', marker=ms_test, color=f"C{i}")
+                    label="test set", ls='', marker=m_test, color=f"C{i}")
             inference_indices = [(all_data[str(buildNo)]['HX'] == setup and
                                   'error_test_inference' in all_data[str(buildNo)] and
                                   len(all_data[str(buildNo)]['error_test_inference']) > 0)
@@ -135,13 +136,14 @@ def plot_summary():
                     [all_data[str(buildNo)]['error_test_inference'] for buildNo in builds[indices]
                      if ('error_test_inference' in all_data[str(buildNo)] and
                          len(all_data[str(buildNo)]['error_test_inference']) > 0)],
-                    label="test set inference", ls='', marker=ms_testInference, color=f"C{i}")
+                    label="test set inference", ls='', marker=m_testInference,
+                    ms=ms_testInference, color=f"C{i}")
 
     else:
         ax.plot(xvals, [all_data[str(buildNo)]['error_train'] for buildNo in builds],
-                label="train set", color='black', ls='', marker=ms_train)
+                label="train set", color='black', ls='', marker=m_train)
         ax.plot(xvals, [all_data[str(buildNo)]['error_test'] for buildNo in builds],
-                label="test set", color='black', ls='', marker=ms_test)
+                label="test set", color='black', ls='', marker=m_test)
         inference_indices = [('error_test_inference' in all_data[str(buildNo)] and
                               len(all_data[str(buildNo)]['error_test_inference']) > 0)
                              for buildNo in builds]
@@ -149,7 +151,8 @@ def plot_summary():
                 [all_data[str(buildNo)]['error_test_inference'] for buildNo in builds
                  if ('error_test_inference' in all_data[str(buildNo)] and
                      len(all_data[str(buildNo)]['error_test_inference']) > 0)],
-                label="test set inference", ls='', marker=ms_testInference, color=f"black")
+                label="test set inference", ls='', marker=m_testInference,
+                ms=ms_testInference, color=f"black")
 
     # formatting
     ax.set_yscale('log')
@@ -171,9 +174,10 @@ def plot_summary():
 
     legend1 = ax.legend(
         handles=[
-            mlines.Line2D([], [], color='black', lw=0, marker=ms_test, label='test'),
-            mlines.Line2D([], [], color='black', lw=0, marker=ms_train, label='train'),
-            mlines.Line2D([], [], color='black', lw=0, marker=ms_testInference, label='test inference'),
+            mlines.Line2D([], [], color='black', lw=0, marker=m_test, label='test'),
+            mlines.Line2D([], [], color='black', lw=0, marker=m_train, label='train'),
+            mlines.Line2D([], [], color='black', lw=0, marker=m_testInference,
+                          label='test inference'),
             mlines.Line2D([], [], color='grey', lw=1, ls=':', marker='', label='max error for success'),
         ],
         loc='upper left',
@@ -191,7 +195,7 @@ def plot_summary():
             fontsize="small", frameon=True, facecolor="lightgray")
         ax.add_artist(legend2)
 
-    ax.set_ylim(2.5, 15)
+    ax.set_ylim(1.5, 25)
     ax.axes.get_yaxis().set_ticks([])
     ax.axes.get_yaxis().set_ticks([], minor=True)
     ytickminors = list(range(3, 10)) + [15]

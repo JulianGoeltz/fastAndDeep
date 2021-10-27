@@ -1,6 +1,6 @@
 @Library("jenlib")
 
-String notificationChannel = "#time-to-first-spike-on-hx"
+String notificationChannel = "#hicann-dls-users"
 
 addBuildParameter(string(name: 'chipstring', defaultValue: "random",
 		         description: 'The chip on which the experiments should be executed (in the form `W66F3`). If this string is "random", a random free chip will be used.'))
@@ -139,9 +139,9 @@ stage("get datasets") {
 stage("training") {
 	//// potentially shorten the training, for testing purposes
 	//runOnSlave(label: "frontend") {
-	//	dir("fastAndDeep/experiment_configs") {
-	//		jesh("sed -i 's/epoch_number: 300/epoch_number: 10/' yin_yang_hx.yaml")
-	//		jesh("sed -i 's/epoch_snapshots: \\[1, 5, 10, 15, 50, 100, 150, 200, 300\\]/epoch_snapshots: \\[1 \\]/' yin_yang_hx.yaml")
+	//	dir("fastAndDeep") {
+	//		jesh("sed -i 's/epoch_number: 300/epoch_number: 10/' experiment_configs/yin_yang_hx.yaml")
+	//		jesh("sed -i 's/epoch_snapshots: \\[1, 5, 10, 15, 50, 100, 150, 200, 300\\]/epoch_snapshots: \\[1 \\]/' experiment_configs/yin_yang_hx.yaml")
 	//		jesh("sed -i 's/^    write_new_data/    # write_new_data()/' src/py/jenkins_elastic.py")
 	//	}
 	//}
@@ -191,9 +191,9 @@ stage("inference") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
 					jesh('[ "$(ls fastAndDeep/experiment_results/ | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/ | tail -n 1) fastAndDeep/experiment_results/lastrun')
-					// runs inference for 3 times
+					// runs inference for X times
 					jeshWithLoggedStds(
-						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; (python experiment.py inference ../experiment_results/lastrun; python experiment.py inference ../experiment_results/lastrun; python experiment.py inference ../experiment_results/lastrun)',
+						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; for $(seq 10); do python experiment.py inference ../experiment_results/lastrun; done',
 						"inference.out",
 						"tmp_stderr.log"
 					)
@@ -230,7 +230,7 @@ stage("finalisation") {
 			inSingularity(app: "visionary-dls") {
 				// gets the mean of all accuracies and compares it with hard coded 92
 				jeshWithLoggedStds(
-					'(( $(echo "92 > $(grep -oP "the accuracy is \\K[0-9.]*" inference.out | jq -s add/length)" | bc -l) )) && echo "accuracy too bad" && exit 1 || exit 0',
+					'acc=$(grep -oP "the accuracy is \\K[0-9.]*" inference.out | jq -s add/length); (( $(echo "92 > $acc" | bc -l) )) && (echo "accuracy $acc is too bad" >&2) && exit 1 || exit 0',
 					"tmp_stdout.out",
 					"tmp_stderr.log"
 				)
