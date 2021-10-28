@@ -193,7 +193,7 @@ stage("inference") {
 					jesh('[ "$(ls fastAndDeep/experiment_results/ | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/ | tail -n 1) fastAndDeep/experiment_results/lastrun')
 					// runs inference for X times
 					jeshWithLoggedStds(
-						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; for $(seq 10); do python experiment.py inference ../experiment_results/lastrun; done',
+						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; for i in $(seq 10); do python experiment.py inference ../experiment_results/lastrun; done',
 						"inference.out",
 						"tmp_stderr.log"
 					)
