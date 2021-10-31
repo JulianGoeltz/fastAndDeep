@@ -127,32 +127,32 @@ def plot_summary():
                     label="train set", ls='', marker=m_train, color=f"C{i}")
             ax.plot(xvals[indices], [all_data[str(buildNo)]['error_test'] for buildNo in builds[indices]],
                     label="test set", ls='', marker=m_test, color=f"C{i}")
-            inference_indices = [(all_data[str(buildNo)]['HX'] == setup and
-                                  'error_test_inference' in all_data[str(buildNo)] and
-                                  len(all_data[str(buildNo)]['error_test_inference']) > 0)
-                                 for buildNo in builds]
 
-            ax.plot(xvals[inference_indices],
-                    [all_data[str(buildNo)]['error_test_inference'] for buildNo in builds[indices]
-                     if ('error_test_inference' in all_data[str(buildNo)] and
-                         len(all_data[str(buildNo)]['error_test_inference']) > 0)],
-                    label="test set inference", ls='', marker=m_testInference,
-                    ms=ms_testInference, color=f"C{i}")
+            for j, buildNo in enumerate(builds):
+                if (
+                    all_data[str(buildNo)]['HX'] == setup and
+                    'error_test_inference' in all_data[str(buildNo)] and
+                    len(all_data[str(buildNo)]['error_test_inference']) > 0
+                ):
+                    ax.plot(xvals[j],
+                            [all_data[str(buildNo)]['error_test_inference']],
+                            label="test set inference", ls='', marker=m_testInference,
+                            ms=ms_testInference, color=f"C{i}")
 
     else:
         ax.plot(xvals, [all_data[str(buildNo)]['error_train'] for buildNo in builds],
                 label="train set", color='black', ls='', marker=m_train)
         ax.plot(xvals, [all_data[str(buildNo)]['error_test'] for buildNo in builds],
                 label="test set", color='black', ls='', marker=m_test)
-        inference_indices = [('error_test_inference' in all_data[str(buildNo)] and
-                              len(all_data[str(buildNo)]['error_test_inference']) > 0)
-                             for buildNo in builds]
-        ax.plot(xvals[inference_indices],
-                [all_data[str(buildNo)]['error_test_inference'] for buildNo in builds
-                 if ('error_test_inference' in all_data[str(buildNo)] and
-                     len(all_data[str(buildNo)]['error_test_inference']) > 0)],
-                label="test set inference", ls='', marker=m_testInference,
-                ms=ms_testInference, color=f"black")
+        for j, buildNo in enumerate(builds):
+            if (
+                'error_test_inference' in all_data[str(buildNo)] and
+                len(all_data[str(buildNo)]['error_test_inference']) > 0
+            ):
+                ax.plot(xvals[j],
+                        [all_data[str(buildNo)]['error_test_inference']],
+                        label="test set inference", ls='', marker=m_testInference,
+                        ms=ms_testInference, color=f"black")
 
     # formatting
     ax.set_yscale('log')
