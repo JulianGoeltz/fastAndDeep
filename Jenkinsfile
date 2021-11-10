@@ -17,6 +17,7 @@ String tmpErrorMsg = ""
 
 try {
 withCcache() {
+withEnv(["USE_LAMBERTW_SCIPY=True"]) {
 withModules(modules: ["waf", "ppu-toolchain"]) {
 
 stage("waf setup") {
@@ -253,6 +254,7 @@ stage("finalisation") {
 }
 
 
+}
 }
 }
 
