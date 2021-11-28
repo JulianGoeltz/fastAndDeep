@@ -36,6 +36,11 @@ sim_params_eventbased = {
     'g_leak': 1.,
     'threshold': 1.,
     'tau_syn': 1.,
+    # or e.g. the following, but adapt weights (weights_mean = 0.10)
+    # 'leak': 0.7,
+    # 'g_leak': 4.,
+    # 'threshold': 1.08,
+    # 'tau_syn': 1.,
 }
 
 

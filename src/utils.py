@@ -163,7 +163,7 @@ class EqualtimeFunctionIntegrator(EqualtimeFunctionEventbased):
         for step in range(sim_params['steps']):
             # print(step)
             mem = sim_params['decay_mem'] * (mem - sim_params['leak']) \
-                + syn * sim_params['resolution'] + sim_params['leak']
+                + 1. / sim_params['g_leak'] * syn * sim_params['resolution'] + sim_params['leak']
             syn = sim_params['decay_syn'] * syn + charge[:, :, step]
 
             # mask is a logical_and implemented by multiplication
