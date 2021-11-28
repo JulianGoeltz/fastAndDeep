@@ -78,11 +78,11 @@ if __name__ == '__main__':
                          "Either execute without hw resources, or set 'use_hicannx'")
 
         config_name = osp.splitext(osp.basename(sys.argv[2]))[0]
-        t_start = time.time()
+        t_start = time.perf_counter()
         dirname = '{0}_{1:%Y-%m-%d_%H-%M-%S}'.format(config_name, datetime.datetime.now())
         net = training.train(training_params, network_layout, neuron_params,
                              dataset_train, dataset_val, dataset_test, dirname, filename)
-        t_end = time.time()
+        t_end = time.perf_counter()
         duration = t_end - t_start
         print('Training {0} epochs -> duration: {1} seconds'.format(training_params['epoch_number'], duration))
 

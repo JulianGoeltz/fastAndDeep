@@ -443,10 +443,10 @@ class DeviceDataLoader():
 
 class TIMER:
     def __init__(self, pre=""):
-        self.timestmp = time.time()
+        self.timestmp = time.perf_counter()
         self.pre = pre
 
     def time(self, label=""):
         if self.timestmp > 0:
-            print(f"{self.pre}{label} {(time.time() - self.timestmp) * 1e3:.0f}ms")
-        self.timestmp = time.time()
+            print(f"{self.pre}{label} {(time.perf_counter() - self.timestmp) * 1e3:.0f}ms")
+        self.timestmp = time.perf_counter()
