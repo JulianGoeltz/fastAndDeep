@@ -411,6 +411,27 @@ class LossFunction(torch.nn.Module):
         return total.mean()
 
 
+class LossFunctionMSE(torch.nn.Module):
+    def __init__(self, number_labels, tau_syn, early, late, device):
+        super(LossFunction, self).__init__()
+        self.number_labels = number_labels
+        self.tau_syn = tau_syn
+        self.device = device
+
+        self.early = self.tau_syn * early
+        self.late = self.tau_syn * late
+        return
+
+    def forward(self, label_times, true_label):
+        label_idx = to_device(true_label.clone().type(torch.long).view(-1, 1), self.device)
+        true_label_times = label_times.gather(1, label_idx).flatten()
+
+        target = torch.eye(self.number_labels)[true_label] * (self.early - self.late) + self.late
+        loss = 1. / 2. * (label_times - target)**2
+        loss[true_label_times == np.inf] = 100.
+        return loss.mean()
+
+
 def get_default_device():
     # Pick GPU if avialable, else CPU
     if torch.cuda.is_available():
