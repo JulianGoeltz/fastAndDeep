@@ -840,7 +840,7 @@ def compare_voltages(dirname, filename, dataset, device=None, return_all=False, 
     """new plot: comparing un-/trained label voltages to specific patterns"""
     if device is None:
         device = torch.device('cpu')
-    neuron_params, training_params, network_layout = training.load_config(dirname, filename)
+    _, neuron_params, network_layout, training_params = training.load_config(osp.join(dirname, "config.yaml"))
     assert not training_params.get('use_hicannx', False), "for now only do software membranes"
     assert net is None, "with loaded network we need to take care -> done later"
     loader = torch.utils.data.DataLoader(dataset, shuffle=False,

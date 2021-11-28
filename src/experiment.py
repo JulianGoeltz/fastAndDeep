@@ -150,6 +150,9 @@ if __name__ == '__main__':
             evaluation.yin_yang_spiketime_diffs('test', dataset_test, dirname=dirname, filename=filename,
                                                 device=device, net=net)
 
+        # potential plotting (needs a manual switch in utils.py)
+        # evaluation.compare_voltages(dataset=dataset_train, dirname=dirname, filename=filename, device=device)
+
         evaluation.loss_accuracy(dataset, dirname=dirname, filename=filename)
         evaluation.summary_plot(dataset, dirname=dirname, filename=filename, net=net)
         if untrained:
