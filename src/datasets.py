@@ -146,3 +146,33 @@ class YinYangDataset(Dataset):
 
     def __len__(self):
         return len(self.cs)
+
+
+class XOR(Dataset):
+    def __init__(self, which='train', early=0.15, late=2.,
+                 r_small=0.1, r_big=0.5, size=1000, seed=42,
+                 multiply_input_layer=1):
+        assert type(multiply_input_layer) == int
+        self.cs = []
+        self.vals = []
+        self.class_names = ['False', 'True']
+
+        for i, elem in enumerate(
+            [[0, 0],
+             [0, 1],
+             [1, 0],
+             [1, 1],
+             ]
+        ):
+            self.cs.append(torch.tensor(elem).sum() % 2)
+            self.vals.append(
+                torch.hstack([torch.tensor(elem),
+                              torch.tensor([0, 1])]  # bias
+                            ) * (late - early) + early
+            )
+
+    def __getitem__(self, index):
+        return self.vals[index], self.cs[index]
+
+    def __len__(self):
+        return len(self.cs)

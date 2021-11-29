@@ -34,6 +34,10 @@ if __name__ == '__main__':
         dataset_train = datasets.YinYangDataset(size=5000, seed=42, multiply_input_layer=multiply_input_layer)
         dataset_val = datasets.YinYangDataset(size=1000, seed=41, multiply_input_layer=multiply_input_layer)
         dataset_test = datasets.YinYangDataset(size=1000, seed=40, multiply_input_layer=multiply_input_layer)
+    elif dataset == "xor":
+        dataset_train = datasets.XOR()
+        dataset_val = datasets.XOR()
+        dataset_test = datasets.XOR()
     elif dataset == "mnist":
         dataset_train = datasets.FullMnist('train')
         dataset_val = datasets.FullMnist('val')

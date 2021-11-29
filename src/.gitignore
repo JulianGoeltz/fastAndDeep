@@ -4,6 +4,8 @@ plot_test_calibdistr_*.png
 dbg_trace_spike*npy
 comparison_hist.png
 
+membrane_*.npy
+
 debug_calib/
 tmp.png
 live_accuracy.png
