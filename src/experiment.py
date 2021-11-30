@@ -167,5 +167,5 @@ if __name__ == '__main__':
         if net is None:
             evaluation.weight_histograms(dirname=dirname, filename=filename, device=device)
             evaluation.weight_matrix(dirname=dirname, filename=filename, device=device)
-            evaluation.spiketime_hist('train', dataset_train, dirname=dirname, filename=filename, device=device)
-            evaluation.spiketime_hist('test', dataset_test, dirname=dirname, filename=filename, device=device)
+            # evaluation.spiketime_hist('train', dataset_train, dirname=dirname, filename=filename, device=device)
+            # evaluation.spiketime_hist('test', dataset_test, dirname=dirname, filename=filename, device=device)
