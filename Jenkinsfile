@@ -222,10 +222,16 @@ stage("finalisation") {
 	runOnSlave(label: "frontend") {
 		archiveArtifacts 'fastAndDeep/experiment_results/lastrun/epoch_300/*.png'
 		archiveArtifacts 'fastAndDeep/src/live_accuracy.png'
+		// plot short detailed summary
 		inSingularity(app: "visionary-dls") {
 			jesh('cd fastAndDeep/src/py; python jenkins_elastic.py')
 		}
 		archiveArtifacts 'fastAndDeep/src/py/jenkinssummary_yin_yang.png'
+		// plot long overview summary
+		inSingularity(app: "visionary-dls") {
+			jesh('cd fastAndDeep/src/py; python jenkins_elastic.py  --filename="jenkinssummary_{dataset}_longNolegend.png" --firstBuild=50 --nolegend --reduced_xticks')
+		}
+		archiveArtifacts 'fastAndDeep/src/py/jenkinssummary_yin_yang_longNolegend.png'
 		// test whether accuracy is too low
 		try {
 			inSingularity(app: "visionary-dls") {
@@ -248,7 +254,7 @@ stage("finalisation") {
 				message: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME} on `W${wafer}F${fpga}``!\n```\n${t.toString()}\n```\n\n${tmpErrorMsg}",
 				failOnError: true,
 				endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
-		throw t
+			throw t
 		}
 	}
 }
@@ -286,6 +292,10 @@ setJobDescription("""
 <p>
   <h1>Summary of the last few runs</h1>
   <img width=600 src="lastSuccessfulBuild/artifact/fastAndDeep/src/py/jenkinssummary_yin_yang.png"/>
+</p>
+<p>
+  <h1>Overview over a longer time (50 runs)</h1>
+  <img width=600 src="lastSuccessfulBuild/artifact/fastAndDeep/src/py/jenkinssummary_yin_yang_longNolegend.png"/>
 </p>
 <p>
   <h1>Stats of last stable run</h1>

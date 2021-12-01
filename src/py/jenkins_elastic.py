@@ -94,6 +94,15 @@ def plot_summary():
     parser.add_argument('--lastBuild', default=0, type=int)
     parser.add_argument('--dataset', default='yin_yang', type=str)
     parser.add_argument('--setup', default='all', type=str)
+    parser.add_argument("--nolegend", help="not plot legend",
+                        default=False, action='store_true',)
+    parser.add_argument("--reduced_xticks", help="not plot all xticks",
+                        default=False, action='store_true',)
+    parser.add_argument(
+        '--filename',
+        default="jenkinssummary_{dataset}.png",
+        type=str)
+
     args = parser.parse_args()
 
     # getting correctly sorted subset of builds
@@ -169,31 +178,32 @@ def plot_summary():
     # fail line
     ax.axhline(max_allowed_error, color='grey', ls=':')
 
-    plt.rcParams['legend.handlelength'] = 1
-    plt.rcParams['legend.handleheight'] = 1.125
+    if not args.nolegend:
+        plt.rcParams['legend.handlelength'] = 1
+        plt.rcParams['legend.handleheight'] = 1.125
 
-    legend1 = ax.legend(
-        handles=[
-            mlines.Line2D([], [], color='black', lw=0, marker=m_test, label='test'),
-            mlines.Line2D([], [], color='black', lw=0, marker=m_train, label='train'),
-            mlines.Line2D([], [], color='black', lw=0, marker=m_testInference,
-                          label='test inference'),
-            mlines.Line2D([], [], color='grey', lw=1, ls=':', marker='', label='max error for success'),
-        ],
-        loc='upper left',
-        # fontsize='large',
-        frameon=True, facecolor="lightgray")
-    ax.add_artist(legend1)
-    if args.setup == 'all':
-        legend2 = ax.legend(
+        legend1 = ax.legend(
             handles=[
-                # mpatches.Patch(color=f"C{i}", label=setup)
-                mpatches.Patch(color=f"C{i}", label=setup)
-                for i, setup in enumerate(all_setups)
+                mlines.Line2D([], [], color='black', lw=0, marker=m_test, label='test'),
+                mlines.Line2D([], [], color='black', lw=0, marker=m_train, label='train'),
+                mlines.Line2D([], [], color='black', lw=0, marker=m_testInference,
+                              label='test inference'),
+                mlines.Line2D([], [], color='grey', lw=1, ls=':', marker='', label='max error for success'),
             ],
-            loc='lower left',
-            fontsize="small", frameon=True, facecolor="lightgray")
-        ax.add_artist(legend2)
+            loc='lower center',
+            # fontsize='large',
+            frameon=True, facecolor="lightgray")
+        ax.add_artist(legend1)
+        if args.setup == 'all':
+            legend2 = ax.legend(
+                handles=[
+                    # mpatches.Patch(color=f"C{i}", label=setup)
+                    mpatches.Patch(color=f"C{i}", label=setup)
+                    for i, setup in enumerate(all_setups)
+                ],
+                loc='lower left',
+                fontsize="small", frameon=True, facecolor="lightgray")
+            ax.add_artist(legend2)
 
     ax.set_ylim(1.5, 25)
     ax.axes.get_yaxis().set_ticks([])
@@ -205,22 +215,36 @@ def plot_summary():
     ax.set_yticks([10])
     ax.set_yticklabels([10])
 
-    ax.set_xticks(xvals)
-    ax.set_xticklabels(
-        ["#{} ({})".format(buildNo,
-                           datetime.datetime.fromtimestamp(
-                               float(all_data[str(buildNo)]["date"])).strftime('%d-%m'),
-                           )
-         for buildNo in builds],
-        rotation=-90, fontsize="small")
-    if args.setup == 'all':
-        for ticklabel, buildNo in zip(ax.get_xticklabels(), builds):
-            index_of_setup = all_setups.index(all_data[str(buildNo)]['HX'])
-            ticklabel.set_color(f"C{index_of_setup}")
+    if not args.reduced_xticks:
+        ax.set_xticks(xvals)
+        ax.set_xticklabels(
+            ["#{} ({})".format(buildNo,
+                               datetime.datetime.fromtimestamp(
+                                   float(all_data[str(buildNo)]["date"])).strftime('%m-%d'),
+                               )
+             for buildNo in builds],
+            rotation=-90, fontsize="small")
+        if args.setup == 'all':
+            for ticklabel, buildNo in zip(ax.get_xticklabels(), builds):
+                index_of_setup = all_setups.index(all_data[str(buildNo)]['HX'])
+                ticklabel.set_color(f"C{index_of_setup}")
+    else:
+        idcs = np.linspace(0, len(xvals) - 1, 10, dtype=int)
+        ax.set_xticks(xvals[idcs])
+        ax.set_xticklabels(
+            ["#{}\n({})".format(buildNo,
+                                datetime.datetime.fromtimestamp(
+                                    float(all_data[str(buildNo)]["date"])).strftime('%m-%d'),
+                                )
+             for buildNo in builds[idcs]],
+            # rotation=-90,
+            fontsize="small")
     fig.tight_layout()  # rect=[0, 0.00, 1, 1.99])  # due to suptitle
 
     # saving
-    fig.savefig(f"jenkinssummary_{args.dataset}.png")
+    fig.savefig(
+        args.filename.format(dataset=args.dataset)
+    )
 
 
 if __name__ == '__main__':
