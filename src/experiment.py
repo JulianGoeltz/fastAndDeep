@@ -103,8 +103,13 @@ if __name__ == '__main__':
         start_epoch = int(sys.argv[3])
         savepoints = sys.argv[4].split(',')
         savepoints = [int(item) for item in savepoints]
+        t_start = time.time()
         net = training.continue_training(dirname, filename, start_epoch, savepoints,
                                          dataset_train, dataset_val, dataset_test)
+        t_end = time.time()
+        duration = t_end - t_start
+        print('Training {0} epochs -> duration: {1} seconds'.format(
+            savepoints[-1] - start_epoch, duration))
 
         dirname = dirname + f"/epoch_{savepoints[-1]}/"
         device = utils.get_default_device()
