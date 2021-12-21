@@ -62,9 +62,9 @@ if __name__ == '__main__':
             assert os.environ.get('SLURM_HARDWARE_LICENSES') is not None
             with open('py/hx_settings.yaml') as f:
                 hx_settings = yaml.load(f, Loader=yaml.SafeLoader)
-            hx_setup_no = int(os.environ.get('SLURM_HARDWARE_LICENSES')[1:3])
+            hx_setup_no = os.environ.get('SLURM_HARDWARE_LICENSES')
             if hx_setup_no not in hx_settings:
-                raise OSError(f"Setup no {hx_setup_no} is not described in hx settings file")
+                raise OSError(f"Setup no {hx_setup_no} is not described in hx settings file, only {hx_settings.keys()}")
             print("Using hardware settings:")
             pprint(hx_settings[hx_setup_no])
             neuron_params = hx_settings[hx_setup_no]['neuron_params']
@@ -73,8 +73,10 @@ if __name__ == '__main__':
             if dataset == "yin_yang":
                 network_layout['n_inputs'] = network_layout['n_inputs'] * multiply_input_layer
                 network_layout['n_biases'] = [multiply_bias, 0]
-                network_layout['bias_times'] = [np.array(times).repeat(multiply_bias)
-                                                for times in network_layout['bias_times']]
+                network_layout['bias_times'] = [
+                    np.array(times).repeat(multiply_bias).tolist()  # list for yaml dump
+                    for times in network_layout['bias_times']
+                ]
         else:
             if os.environ.get('SLURM_HARDWARE_LICENSES') is not None:
                 sys.exit("There are SLURM_HARDWARE_LICENSES available "
@@ -105,8 +107,13 @@ if __name__ == '__main__':
         start_epoch = int(sys.argv[3])
         savepoints = sys.argv[4].split(',')
         savepoints = [int(item) for item in savepoints]
+        t_start = time.time()
         net = training.continue_training(dirname, filename, start_epoch, savepoints,
                                          dataset_train, dataset_val, dataset_test)
+        t_end = time.time()
+        duration = t_end - t_start
+        print('Training {0} epochs -> duration: {1} seconds'.format(
+            savepoints[-1] - start_epoch, duration))
 
         dirname = dirname + f"/epoch_{savepoints[-1]}/"
         device = utils.get_default_device()

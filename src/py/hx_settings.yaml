@@ -1,5 +1,15 @@
-66:
-        calibration: /wang/users/jgoeltz/cluster_home/strobeStuff/ttfs_pytorch/src/calibrations/w66_BB.npz
+W66F0:
+        calibration: calibrations/w66_BB.npz
+        neuron_params:
+                leak: 0.70
+                threshold: 1.08
+                g_leak: 4.
+                tau_syn: 1.
+        scale_weights: 30
+        synapse_bias: 1000
+        taum : 6.
+temp_for_jenkins:
+        calibration: calibrations/tmp_jenkins.npz
         neuron_params:
                 leak: 0.70
                 threshold: 1.08

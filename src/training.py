@@ -62,7 +62,7 @@ class Net(torch.nn.Module):
         if self.use_hicannx:
             with open('py/hx_settings.yaml') as f:
                 self.hx_settings = yaml.load(f, Loader=yaml.SafeLoader)[
-                    int(os.environ.get('SLURM_HARDWARE_LICENSES')[1:3])]
+                    os.environ.get('SLURM_HARDWARE_LICENSES')]
 
             self.hx_settings['retries'] = 5
             self.hx_settings['single_simtime'] = 30.
@@ -517,7 +517,7 @@ def save_data(dirname, filename, net, label_weights, train_losses, train_accurac
             f.write(os.environ.get('SLURM_HARDWARE_LICENSES'))
         # save current calib settings
         with open(dirname + '/hx_settings.yaml', 'w') as f:
-            yaml.dump({int(os.environ.get('SLURM_HARDWARE_LICENSES')[1:3]): net.hx_settings}, f)
+            yaml.dump({os.environ.get('SLURM_HARDWARE_LICENSES'): net.hx_settings}, f)
     # save training result
     np.save(dirname + filename + '_label_weights_training.npy', label_weights)
     np.save(dirname + filename + '_train_losses.npy', train_losses)
@@ -690,13 +690,15 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
                 fig, ax = plt.subplots(1, 1)
                 tmp = 1. - running_mean(tmp_training_progress, N=30)
                 ax.plot(np.arange(len(tmp)) / len(trainloader), tmp)
-                ax.set_ylim(0.01, 1.0)
+                ax.set_ylim(0.005, 1.0)
                 ax.set_yscale('log')
                 ax.set_xlabel("epochs")
-                ax.set_title("error (1-accuracy): running_mean of 30 batches")
+                ax.set_ylabel("error [%] (running_mean of 30 batches)")
                 ax.axhline(0.30)
                 ax.axhline(0.05)
-                ax.axhline(0.02)
+                ax.axhline(0.01)
+                ax.set_yticks([0.01, 0.05, 0.1, 0.3])
+                ax.set_yticklabels([1, 5, 10, 30])
                 fig.savefig('live_accuracy.png')
                 print("===========Saved live accuracy plot")
                 plt.close(fig)
@@ -1007,7 +1009,7 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
 
     print("initial validation started")
     with torch.no_grad():
-        loss, validate_accuracy, validate_outputs, validate_labels = validation_step(
+        loss, validate_accuracy, validate_outputs, validate_labels, _ = validation_step(
             net, criterion, loader_val, device)
         tmp_class_outputs = [[] for i in range(num_classes)]
         for pattern in range(len(validate_outputs)):

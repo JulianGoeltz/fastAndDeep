@@ -27,7 +27,7 @@ def run_inference(dirname, filename, dataset, untrained, reference, device=None,
         if training_params['use_hicannx'] and \
            os.environ.get('SLURM_HARDWARE_LICENSES') is None:
             print("#### to evaluate epochs on HX, execute on hardware (with 'srun --partition cube --wafer ...')")
-            return None, None
+            return (None, ) * (2 if not return_all else 4)
     if wholeset:
         batch_size = len(dataset)
     else:
@@ -587,7 +587,6 @@ def yin_yang_hiddentimes(datatype, dataset, dirname='tmp', filename='', referenc
     if outputs is None and labels is None:
         return
     hiddens = hiddens.detach().cpu().numpy()
-    print(hiddens.shape)
     reduced_inputs = np.array([[item[0], item[1]] for item in inputs])
     cm = plt.cm.get_cmap('RdYlBu')
     norm = plt.Normalize(0., 3.)

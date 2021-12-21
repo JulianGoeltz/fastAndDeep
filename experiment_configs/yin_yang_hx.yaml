@@ -19,7 +19,7 @@ training_params:
   beta: 1.
   bump_weight_value: 0.0005
   enforce_cpu: False
-  epoch_number: 200
+  epoch_number: 300
   epoch_snapshots: [1, 5, 10, 15, 50, 100, 150, 200, 300]
   learning_rate: 0.002
   lr_scheduler: {gamma: 0.95, step_size: 20, type: StepLR}
