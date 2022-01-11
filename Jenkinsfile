@@ -1,6 +1,7 @@
 @Library("jenlib")
+import groovy.transform.Field
 
-String notificationChannel = "#hicann-dls-users"
+@Field String notificationChannel = "#hicann-dls-users"
 
 addBuildParameter(string(name: 'chipstring', defaultValue: "random",
 		         description: 'The chip on which the experiments should be executed (in the form `W66F3`). If this string is "random", a random free chip will be used.'))
@@ -24,12 +25,14 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 			tmpErrorMsg = "\n\n```\n${tmpErrorMsg}\n```"
 		}
 	}
+	String message = "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```${tmpErrorMsg}"
 	mattermostSend(
 		channel: notificationChannel,
-		message: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```${tmpErrorMsg}",
+		message: message,
 		failOnError: true,
 		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
-	throw t
+	print(message)
+	currentBuild.result = 'FAILED'
 }
 
 
@@ -70,11 +73,11 @@ stage("waf install") {
 }
 
 // globally define the two variables to not have them only in one scope
-int wafer = 0, fpga = 0;
+@Field int wafer = 0, fpga = 0;
 stage("Checkout and determine chip") {
 	// for sure done wrong, but how to put it into a subfolder and special branch with scm?
 	runOnSlave(label: "frontend") {
-		jesh("git clone -b feature/Jenkinsjob https://github.com/JulianGoeltz/fastAndDeep")
+		jesh("git clone -b feature/JenkinsjobUpdates https://github.com/JulianGoeltz/fastAndDeep")
 		// determine the chip to be used in the following experiments
 		chipstring = params.get('chipstring')
 		if  (! chipstring.matches(/W[0-9]+F[0,3]/)) {
@@ -242,13 +245,6 @@ stage("finalisation") {
 	beautifulMattermostSend(t, false);
 }
 
-if (currentBuild.currentResult != "SUCCESS") {
-	mattermostSend(
-		channel: notificationChannel,
-		message: "Jenkins finished unsuccessfully [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!",
-		failOnError: true,
-		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
-}
 
 /**
  * Setting the description of the jenkins job (to have it in the repository).
