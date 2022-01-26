@@ -33,6 +33,7 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 	print(message)
 	currentBuild.result = 'FAILED'
+	throw t
 }
 
 
