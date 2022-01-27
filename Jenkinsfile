@@ -1,7 +1,11 @@
 @Library("jenlib")
 import groovy.transform.Field
 
+
 @Field String notificationChannel = "#hicann-dls-users"
+
+// only sent one message to mattermost
+@Field Boolean SentMattermost = false;
 
 addBuildParameter(string(name: 'chipstring', defaultValue: "random",
 		         description: 'The chip on which the experiments should be executed (in the form `W66F3`). If this string is "random", a random free chip will be used.'))
@@ -16,10 +20,19 @@ def jeshWithLoggedStds(String script, String filenameStdout, String filenameStde
 
 
 def beautifulMattermostSend(Throwable t, Boolean readError) {
+	if (SentMattermost) {
+		throw t
+	}
+
 	String tmpErrorMsg = ""
 	if(readError) {
 		runOnSlave(label: "frontend") {
 			tmpErrorMsg = readFile('tmp_stderr.log')
+		}
+		// too long messages lead to (cryptic) errors, so shorten the error message
+		if (tmpErrorMsg.length() > 1000 ) {
+		    tmpErrorMsg = "[Error was too long, check log; beginning and end are the following:]\n" + \
+			    "${tmpErrorMsg[1..200]}\n[...]\n${tmpErrorMsg[-200..-1]}"
 		}
 		if ( tmpErrorMsg != "" ) {
 			tmpErrorMsg = "\n\n```\n${tmpErrorMsg}\n```"
@@ -32,6 +45,7 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 		failOnError: true,
 		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 	print(message)
+	SentMattermost = true
 	currentBuild.result = 'FAILED'
 	throw t
 }
@@ -193,11 +207,13 @@ stage("inference") {
 				withModules(modules: ["localdir"]) {
 					jesh('[ "$(ls fastAndDeep/experiment_results/ | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/ | tail -n 1) fastAndDeep/experiment_results/lastrun')
 					// runs inference for X times
-					jeshWithLoggedStds(
-						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; for i in $(seq 10); do python experiment.py inference ../experiment_results/lastrun; done',
-						"inference.out",
-						"tmp_stderr.log"
-					)
+					for(int i = 0;i<10;i++) {
+						jeshWithLoggedStds(
+							'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py inference ../experiment_results/lastrun',
+							"inference.out",
+							"tmp_stderr.log"
+						)
+					}
 				}
 			}
 		}
