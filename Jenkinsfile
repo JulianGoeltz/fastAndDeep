@@ -209,8 +209,8 @@ stage("inference") {
 					// runs inference for X times
 					for(int i = 0;i<10;i++) {
 						jeshWithLoggedStds(
-							'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py inference ../experiment_results/lastrun',
-							"inference.out",
+							'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py inference ../experiment_results/lastrun | tee -a inference.out',
+							"tmp_stdout.out",
 							"tmp_stderr.log"
 						)
 					}
