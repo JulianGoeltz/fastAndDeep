@@ -183,7 +183,8 @@ stage("training") {
 					// to get all information about the executing node
 					jesh('env')
 					jeshWithLoggedStds(
-						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py train ../experiment_configs/yin_yang_hx.yaml',
+						// python path export because changed strobe interface must be loaded; USE_LAMBERTW_SCIPY because CUDA implementation is not installed
+						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; USE_LAMBERTW_SCIPY=yes python experiment.py train ../experiment_configs/yin_yang_hx.yaml',
 						"tmp_stdout.log",
 						"tmp_stderr.log"
 					)
@@ -210,7 +211,8 @@ stage("inference") {
 					// runs inference for X times
 					for(int i = 0;i<10;i++) {
 						jeshWithLoggedStds(
-							'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py inference ../experiment_results/lastrun | tee -a ../../inference.out',
+							// python path export because changed strobe interface must be loaded; USE_LAMBERTW_SCIPY because CUDA implementation is not installed
+							'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; USE_LAMBERTW_SCIPY=yes python experiment.py inference ../experiment_results/lastrun | tee -a ../../inference.out',
 							"tmp_stdout.out",
 							"tmp_stderr.log"
 						)

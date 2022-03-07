@@ -31,6 +31,7 @@ class Net(torch.nn.Module):
         self.n_biases = network_layout['n_biases']
         self.weight_means = network_layout['weight_means']
         self.weight_stdevs = network_layout['weight_stdevs']
+        self.device = device
 
         if 'bias_times' in network_layout.keys():
             if len(network_layout['bias_times']) > 0 and isinstance(network_layout['bias_times'][0], (list, np.ndarray)):
@@ -164,7 +165,7 @@ class Net(torch.nn.Module):
             self.hx_settings['single_simtime'],
             self.hx_settings['scale_times'],
             np.arange(num_batch).reshape((-1, 1)).repeat(num_inp, 1),
-            np.empty_like(inpt_batch, dtype=int),
+            np.empty_like(inpt_batch.cpu(), dtype=int),
         )
         # remove infs from spiketrain
         spiketrain = utils.hx_spiketrain_purgeinf(spiketrain)
@@ -311,7 +312,9 @@ class Net(torch.nn.Module):
                         (input_times,
                          self.biases[i].view(1, -1).expand(len(input_times), -1)),
                         1)
-                    output_times = self.layers[i](input_times_including_bias, output_times=spikes_all_hw[i])
+                    output_times = self.layers[i](
+                        input_times_including_bias,
+                        output_times=utils.to_device(spikes_all_hw[i], self.device))
                     if not i == (self.n_layers - 1):
                         hidden_times.append(output_times)
                         input_times = output_times
