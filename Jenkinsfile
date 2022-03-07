@@ -205,6 +205,7 @@ stage("inference") {
 				mem: "16G") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
+					jesh('env')
 					jesh('[ "$(ls fastAndDeep/experiment_results/ | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/ | tail -n 1) fastAndDeep/experiment_results/lastrun')
 					// runs inference for X times
 					for(int i = 0;i<10;i++) {
