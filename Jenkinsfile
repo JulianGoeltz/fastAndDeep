@@ -43,7 +43,7 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 		channel: notificationChannel,
 		message: message,
 		failOnError: true,
-		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
+		endpoint: "https://brainscales-r.kip.uni-heidelberg.de:6443/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 	print(message)
 	SentMattermost = true
 	currentBuild.result = 'FAILED'
