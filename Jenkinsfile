@@ -176,7 +176,7 @@ stage("training") {
 				"cpus-per-task": 8,
 				wafer: "${wafer}",
 				"fpga-without": "${fpga}",
-				time: "5:0:0",
+				time: "6:0:0",
 				mem: "16G") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
