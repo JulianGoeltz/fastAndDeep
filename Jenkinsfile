@@ -90,9 +90,10 @@ stage("waf install") {
 // globally define the two variables to not have them only in one scope
 @Field int wafer = 0, fpga = 0;
 stage("Checkout and determine chip") {
-	// for sure done wrong, but how to put it into a subfolder and special branch with scm?
 	runOnSlave(label: "frontend") {
-		jesh("git clone -b feature/JenkinsjobUpdates https://github.com/JulianGoeltz/fastAndDeep")
+		dir("fastAndDeep") {
+			checkout scm
+		}
 		// determine the chip to be used in the following experiments
 		chipstring = params.get('chipstring')
 		if  (! chipstring.matches(/W[0-9]+F[0,3]/)) {
