@@ -385,7 +385,9 @@ def network_load(path, basename, device):
             net.hx_lastsetweights = [torch.full(l.weights.data.shape, -64) for l in net.layers]
             net.init_hicannx(device)
         else:
-            print(f"#### untrained network loaded -> not initialising, otherwise error {error}")
+            print(f"#### untrained network loaded -> not initialising, also got error:\n{error}")
+
+    net.device = get_default_device()
     return net
 
 

@@ -1,6 +1,11 @@
 @Library("jenlib")
+import groovy.transform.Field
 
-String notificationChannel = "#hicann-dls-users"
+
+@Field String notificationChannel = "#hicann-dls-users"
+
+// only sent one message to mattermost
+@Field Boolean SentMattermost = false;
 
 addBuildParameter(string(name: 'chipstring', defaultValue: "random",
 		         description: 'The chip on which the experiments should be executed (in the form `W66F3`). If this string is "random", a random free chip will be used.'))
@@ -15,20 +20,33 @@ def jeshWithLoggedStds(String script, String filenameStdout, String filenameStde
 
 
 def beautifulMattermostSend(Throwable t, Boolean readError) {
+	if (SentMattermost) {
+		throw t
+	}
+
 	String tmpErrorMsg = ""
 	if(readError) {
 		runOnSlave(label: "frontend") {
 			tmpErrorMsg = readFile('tmp_stderr.log')
 		}
+		// too long messages lead to (cryptic) errors, so shorten the error message
+		if (tmpErrorMsg.length() > 1000 ) {
+		    tmpErrorMsg = "[Error was too long, check log; beginning and end are the following:]\n" + \
+			    "${tmpErrorMsg[1..200]}\n[...]\n${tmpErrorMsg[-200..-1]}"
+		}
 		if ( tmpErrorMsg != "" ) {
 			tmpErrorMsg = "\n\n```\n${tmpErrorMsg}\n```"
 		}
 	}
+	String message = "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```${tmpErrorMsg}"
 	mattermostSend(
 		channel: notificationChannel,
-		message: "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```${tmpErrorMsg}",
+		message: message,
 		failOnError: true,
-		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
+		endpoint: "https://brainscales-r.kip.uni-heidelberg.de:6443/hooks/qrn4j3tx8jfe3dio6esut65tpr")
+	print(message)
+	SentMattermost = true
+	currentBuild.result = 'FAILED'
 	throw t
 }
 
@@ -42,7 +60,8 @@ stage("waf setup") {
 	inSingularity(app: "visionary-dls") {
 		wafSetup(
 			projects: ["model-hx-strobe"],
-			setupOptions: "--clone-depth=1 --gerrit-changes=13234,15180,15691",
+			setupOptions: "--clone-depth=1",
+			// for v3 additionally: ' --gerrit-changes=16660,16792'
 			noExtraStage: true
 		)
 	}
@@ -70,18 +89,24 @@ stage("waf install") {
 }
 
 // globally define the two variables to not have them only in one scope
-int wafer = 0, fpga = 0;
+@Field int wafer = 0, fpga = 0;
 stage("Checkout and determine chip") {
-	// for sure done wrong, but how to put it into a subfolder and special branch with scm?
 	runOnSlave(label: "frontend") {
-		jesh("git clone -b feature/Jenkinsjob https://github.com/JulianGoeltz/fastAndDeep")
+		dir("fastAndDeep") {
+			checkout scm
+		}
 		// determine the chip to be used in the following experiments
 		chipstring = params.get('chipstring')
 		if  (! chipstring.matches(/W[0-9]+F[0,3]/)) {
 			print ("The given chip string does not match the regex /W[0-9]+F[0,3]/ using tools-slurm to find a random free chip")
-			withModules(modules: ["tools-slurm"]) {
-				chipstring = jesh(script: "find_free_chip.py --random",
-					returnStdout: true).trim()
+			try {
+				withModules(modules: ["tools-slurm"]) {
+					chipstring = jesh(script: "find_free_chip.py --random",
+						returnStdout: true).trim()
+				}
+			} catch (Throwable t) {
+				print ("There is no free chip, so the default Jenkinssetup W62F0 is used")
+				chipstring = "W62F0"
 			}
 		}
 		wafer = Integer.parseInt(chipstring.split("W")[1].split("F")[0])
@@ -158,14 +183,15 @@ stage("training") {
 				"cpus-per-task": 8,
 				wafer: "${wafer}",
 				"fpga-without": "${fpga}",
-				time: "5:0:0",
+				time: "6:0:0",
 				mem: "16G") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
 					// to get all information about the executing node
 					jesh('env')
 					jeshWithLoggedStds(
-						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; python experiment.py train ../experiment_configs/yin_yang_hx.yaml',
+						// python path export because changed strobe interface must be loaded; USE_LAMBERTW_SCIPY because CUDA implementation is not installed
+						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; USE_LAMBERTW_SCIPY=yes python experiment.py train ../experiment_configs/yin_yang_hx.yaml',
 						"tmp_stdout.log",
 						"tmp_stderr.log"
 					)
@@ -187,13 +213,17 @@ stage("inference") {
 				mem: "16G") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
+					jesh('env')
 					jesh('[ "$(ls fastAndDeep/experiment_results/ | wc -l)" -gt 0 ] && ln -sv $(ls fastAndDeep/experiment_results/ | tail -n 1) fastAndDeep/experiment_results/lastrun')
 					// runs inference for X times
-					jeshWithLoggedStds(
-						'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; for i in $(seq 10); do python experiment.py inference ../experiment_results/lastrun; done',
-						"inference.out",
-						"tmp_stderr.log"
-					)
+					for(int i = 0;i<10;i++) {
+						jeshWithLoggedStds(
+							// python path export because changed strobe interface must be loaded; USE_LAMBERTW_SCIPY because CUDA implementation is not installed
+							'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; USE_LAMBERTW_SCIPY=yes python experiment.py inference ../experiment_results/lastrun | tee -a ../../inference.out',
+							"tmp_stdout.out",
+							"tmp_stderr.log"
+						)
+					}
 				}
 			}
 		}
@@ -242,13 +272,6 @@ stage("finalisation") {
 	beautifulMattermostSend(t, false);
 }
 
-if (currentBuild.currentResult != "SUCCESS") {
-	mattermostSend(
-		channel: notificationChannel,
-		message: "Jenkins finished unsuccessfully [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!",
-		failOnError: true,
-		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
-}
 
 /**
  * Setting the description of the jenkins job (to have it in the repository).
