@@ -337,7 +337,7 @@ class Net(torch.nn.Module):
 
 def load_data(dirname, filename, dataname):
     path = dirname + '/' + filename + dataname
-    data = np.load(path)
+    data = np.load(path, allow_pickle=True)
     return data
 
 

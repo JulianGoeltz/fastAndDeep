@@ -125,7 +125,7 @@ class TestIntegratorVsTimebased(unittest.TestCase):
 
             print(f"#### forward pass for resol {resol}")
             with torch.no_grad():
-                outputs_integrator = layer_integrator(times_input, outputs_eventbased)
+                outputs_integrator = layer_integrator(times_input)
 
             # handle infs
             if debug:
