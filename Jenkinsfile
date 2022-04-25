@@ -98,9 +98,14 @@ stage("Checkout and determine chip") {
 		chipstring = params.get('chipstring')
 		if  (! chipstring.matches(/W[0-9]+F[0,3]/)) {
 			print ("The given chip string does not match the regex /W[0-9]+F[0,3]/ using tools-slurm to find a random free chip")
-			withModules(modules: ["tools-slurm"]) {
-				chipstring = jesh(script: "find_free_chip.py --random",
-					returnStdout: true).trim()
+			try {
+				withModules(modules: ["tools-slurm"]) {
+					chipstring = jesh(script: "find_free_chip.py --random",
+						returnStdout: true).trim()
+				}
+			} catch (Throwable t) {
+				print ("There is no free chip, so the default Jenkinssetup W62F0 is used")
+				chipstring = "W62F0"
 			}
 		}
 		wafer = Integer.parseInt(chipstring.split("W")[1].split("F")[0])
