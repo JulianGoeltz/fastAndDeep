@@ -6,6 +6,87 @@ from torch.utils.data.dataset import Dataset
 import torchvision
 
 
+class BarsDataset(Dataset):
+    def __init__(self, square_size,
+                 early=0.05, late=0.5,
+                 noise_level=1e-2,
+                 samples_per_class=10):
+        debug = False
+        self.__vals = []
+        self.__cs = []
+        self.class_names = ['horiz', 'vert', 'diag']
+        ones = list(np.ones(square_size) + (late - 1.))
+        if debug:
+            print(ones)
+        starter = [ones]
+        for _ in range(square_size - 1):
+            starter.append(list(np.zeros(square_size) + early))
+        if debug:
+            print('Starter')
+            print(starter)
+        horizontals = []
+        for h in permutations(starter):
+            horizontals.append(list(h))
+        horizontals = np.unique(np.array(horizontals), axis=0)
+        if debug:
+            print('Horizontals')
+            print(horizontals)
+        verticals = []
+        for h in horizontals:
+            v = np.transpose(h)
+            verticals.append(v)
+        verticals = np.array(verticals)
+        if debug:
+            print('Verticals')
+            print(verticals)
+        diag = [late - early for _ in range(square_size)]
+        first = np.diag(diag) + early
+        second = first[::-1]
+        diagonals = [first, second]
+        if debug:
+            print('Diagonals')
+            print(diagonals)
+        n = 0
+        idx = 0
+        while n < samples_per_class:
+            h = horizontals[idx].flatten()
+            h = list(h + np.random.rand(len(h)) * noise_level)
+            self.__vals.append(h)
+            self.__cs.append(0)
+            n += 1
+            idx += 1
+            if idx >= len(horizontals):
+                idx = 0
+        n = 0
+        idx = 0
+        while n < samples_per_class:
+            v = verticals[idx].flatten()
+            v = list(v + np.random.rand(len(v)) * noise_level)
+            self.__vals.append(v)
+            self.__cs.append(1)
+            n += 1
+            idx += 1
+            if idx >= len(verticals):
+                idx = 0
+        n = 0
+        idx = 0
+        while n < samples_per_class:
+            d = diagonals[idx].flatten()
+            d = list(d + np.random.rand(len(d)) * noise_level)
+            self.__vals.append(d)
+            self.__cs.append(2)
+            n += 1
+            idx += 1
+            if idx >= len(diagonals):
+                idx = 0
+
+    def __getitem__(self, index):
+        return np.array(self.__vals[index]), self.__cs[index]
+
+    def __len__(self):
+        return len(self.__cs)
+
+
 class FullMnist(Dataset):
     def __init__(self, which='train', zero_at=0.15, one_at=2., invert=True):
         self.cs = []

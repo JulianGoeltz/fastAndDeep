@@ -406,9 +406,6 @@ def check_bump_weights(net, hidden_times, label_times, training_params, epoch, b
         non_spikes = torch.isinf(times) + torch.isnan(times)
         num_nonspikes = float(non_spikes.bool().sum())
         if num_nonspikes / denominator > training_params['max_num_missing_spikes'][i]:
-            # print("epoch {0}, batch {1}: missing hidden spikes "
-            #       "(layer {2}), bumping hidden weights by {3} (targeted_bump={4})".format(
-            #           epoch, batch, i, bump_val, training_params['targeted_weight_bumping']))
             weights_bumped = i
             break
     else:
@@ -418,8 +415,6 @@ def check_bump_weights(net, hidden_times, label_times, training_params, epoch, b
         non_spikes = torch.isinf(label_times) + torch.isnan(label_times)
         num_nonspikes = float(non_spikes.bool().sum())
         if num_nonspikes / denominator > training_params['max_num_missing_spikes'][-1]:
-            # print("epoch {0}, batch {1}: missing label spikes, bumping weights by {2} (targeted_bump={3})".format(
-            #     epoch, batch, bump_val, training_params['targeted_weight_bumping']))
             weights_bumped = -1
     if weights_bumped != -2:
         if training_params['weight_bumping_exp'] and weights_bumped == last_weights_bumped:
@@ -434,6 +429,10 @@ def check_bump_weights(net, hidden_times, label_times, training_params, epoch, b
             net.layers[i].weights.data += bumps
         else:
             net.layers[i].weights.data += bump_val
+
+        print("epoch {0}, batch {1}: missing {4} spikes, bumping weights by {2} (targeted_bump={3})".format(
+            epoch, batch, bump_val, training_params['weight_bumping_targeted'],
+            "label" if weights_bumped == -1 else "hidden"))
     return weights_bumped, bump_val
 
 
