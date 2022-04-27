@@ -10,7 +10,9 @@ class BarsDataset(Dataset):
     def __init__(self, square_size,
                  early=0.05, late=0.5,
                  noise_level=1e-2,
-                 samples_per_class=10):
+                 samples_per_class=10,
+                 multiply_input_layer=1):
+        assert type(multiply_input_layer) == int
         debug = False
         self.__vals = []
         self.__cs = []
@@ -79,6 +81,9 @@ class BarsDataset(Dataset):
             idx += 1
             if idx >= len(diagonals):
                 idx = 0
+
+        if multiply_input_layer > 1:
+            self.__vals = np.array(self.__vals).repeat(multiply_input_layer, 1)
 
     def __getitem__(self, index):
         return np.array(self.__vals[index]), self.__cs[index]
@@ -233,7 +238,7 @@ class XOR(Dataset):
     def __init__(self, which='train', early=0.15, late=2.,
                  r_small=0.1, r_big=0.5, size=1000, seed=42,
                  multiply_input_layer=1):
-        assert type(multiply_input_layer) == int
+        assert multiply_input_layer == 1
         self.cs = []
         self.vals = []
         self.class_names = ['False', 'True']
