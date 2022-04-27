@@ -729,10 +729,12 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
                 tmp_class_outputs[true_label].append(validate_outputs[pattern].cpu().detach().numpy())
             for i in range(num_classes):
                 tmp_times = np.array(tmp_class_outputs[i])
-                inf_mask = np.isinf(tmp_times)
-                tmp_times[inf_mask] = np.NaN
-                mean_times = np.nanmean(tmp_times, 0)
-                std_times = np.nanstd(tmp_times, 0)
+                tmp_times[np.isinf(tmp_times)] = np.NaN
+                mask_notAllNan = np.logical_not(np.isnan(tmp_times)).sum(0) > 0
+                mean_times = np.ones(tmp_times.shape[1:]) * np.NaN
+                std_times = np.ones(tmp_times.shape[1:]) * np.NaN
+                mean_times[mask_notAllNan] = np.nanmean(tmp_times[:, mask_notAllNan], 0)
+                std_times[mask_notAllNan] = np.nanstd(tmp_times[:, mask_notAllNan], 0)
                 mean_validate_outputs_sorted[i].append(mean_times)
                 std_validate_outputs_sorted[i].append(std_times)
 
@@ -744,7 +746,8 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
             print("... {0}% done, train accuracy: {4:.3f}, validation accuracy: {1:.3f},"
                   "trainings loss: {2:.5f}, validation loss: {3:.5f}".format(
                       epoch * 100 / training_params['epoch_number'], validate_accuracy,
-                      np.mean(train_loss), validate_loss, train_accuracy),
+                      np.mean(train_loss) if len(train_loss) > 0 else np.NaN,
+                      validate_loss, train_accuracy),
                   flush=True)
 
         result_dict = {'all_weights': all_weights,
