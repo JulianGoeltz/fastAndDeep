@@ -77,4 +77,4 @@ In order to use the latter, in `utils.py` change `import utils_spiketime_et as u
 	* `calibration/` includes a calibration file for chip
 
 ## References
-* Fast and deep: energy-efficient neuromorphic learning with first-spike times; *J. Göltz∗, L. Kriener∗, A. Baumbach, S. Billaudelle, O. Breitwieser, B. Cramer, D. Dold, A. F. Kungl, W. Senn, J. Schemmel, K. Meier, M. A. Petrovici*; https://arxiv.org/abs/1912.11443
+* Fast and deep: energy-efficient neuromorphic learning with first-spike times; *J. Göltz∗, L. Kriener∗, A. Baumbach, S. Billaudelle, O. Breitwieser, B. Cramer, D. Dold, A. F. Kungl, W. Senn, J. Schemmel, K. Meier, M. A. Petrovici*; https://www.nature.com/articles/s42256-021-00388-x (https://arxiv.org/abs/1912.11443)
