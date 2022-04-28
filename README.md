@@ -10,7 +10,8 @@ git clone git@github.com:JulianGoeltz/fastAndDeep.git
 ```
 install the requirements and you are ready to go.
 ### Python packages
-Without GPU in a new python venv (`python -m venv <venvname>`):
+It is often advisable to install packages in a new virtual environment (`python -m venv <path and name of venv>`).
+In this venv, execute (the version numbers are the ones used for the publication; if you run a newer python version, everything should work with newer versions of the packages)
 ```
 pip install -r requirements.txt
 ```
