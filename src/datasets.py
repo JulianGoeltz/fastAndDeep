@@ -7,6 +7,8 @@ import torchvision
 
 
 class BarsDataset(Dataset):
+    class_names = ['horiz', 'vert', 'diag']
+
     def __init__(self, square_size,
                  early=0.05, late=0.5,
                  noise_level=1e-2,
@@ -16,7 +18,6 @@ class BarsDataset(Dataset):
         debug = False
         self.__vals = []
         self.__cs = []
-        self.class_names = ['horiz', 'vert', 'diag']
         ones = list(np.ones(square_size) + (late - 1.))
         if debug:
             print(ones)

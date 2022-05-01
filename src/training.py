@@ -430,9 +430,9 @@ def check_bump_weights(net, hidden_times, label_times, training_params, epoch, b
         else:
             net.layers[i].weights.data += bump_val
 
-        print("epoch {0}, batch {1}: missing {4} spikes, bumping weights by {2} (targeted_bump={3})".format(
-            epoch, batch, bump_val, training_params['weight_bumping_targeted'],
-            "label" if weights_bumped == -1 else "hidden"))
+        # print("epoch {0}, batch {1}: missing {4} spikes, bumping weights by {2} (targeted_bump={3})".format(
+        #     epoch, batch, bump_val, training_params['weight_bumping_targeted'],
+        #     "label" if weights_bumped == -1 else "hidden"))
     return weights_bumped, bump_val
 
 
