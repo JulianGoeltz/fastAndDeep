@@ -32,6 +32,13 @@ git submodule update --init
 ```
 
 ## Functionality
+### Run demo notebook
+Assuming the software was installed in a virtualenv, the environment must be provided as a kernel for jupyter:
+```
+ipython kernel install --user --name=<venvname>
+```
+The demo notebook is located in the `src` directory.
+
 ### Training
 Test e.g. the `yin_yang` data set by going into `src` and running 
 ```
