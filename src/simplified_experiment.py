@@ -16,11 +16,20 @@ import evaluation
 import utils
 
 
-debug_plot = True
-
+# some configs
+debug_plotAtRuntime = True
+debug_printIntermediateValidation = lambda epoch: epoch % 10 == 0
 config_path = "../experiment_configs/bars_default.yaml"
-
 dataset, neuron_params, network_layout, training_params = training.load_config(config_path)
+
+# if you want to change something, you could do e.g.:
+training_params['epoch_number'] = 150
+# training_params['torch_seed'] = 61231231
+# network_layout['layer_sizes'] = [10, 3]
+# training_params['learning_rate'] = 0.02
+# training_params['lr_scheduler'] = {'gamma': 1.0, 'step_size': 20, 'type': 'StepLR'}
+# training_params['optimizer'] = 'adam'  # 'sgd'
+# training_params['max_num_missing_spikes'] = [0.5, 0.30]
 
 multiply_input_layer = 1 if not training_params['use_hicannx'] else 5
 dataset_train = datasets.BarsDataset(3, noise_level=0, multiply_input_layer=multiply_input_layer)
@@ -58,20 +67,23 @@ dirname = '{0}_{1:%Y-%m-%d_%H-%M-%S}'.format(config_name, datetime.datetime.now(
 torch.manual_seed(training_params['torch_seed'])
 np.random.seed(training_params['numpy_seed'])
 device = torch.device('cpu')
+scheduler = None
 
-# create sim params
-sim_params = {k: training_params.get(k, False)
-              for k in ['use_forward_integrator', 'resolution', 'sim_time',
-                        'rounding_precision', 'use_hicannx', 'max_dw_norm',
-                        'clip_weights_max']
-              }
+bump_val = training_params['weight_bumping_value']
+last_weights_bumped = -2  # means no bumping happened last time
+last_learning_rate = 0  # for printing learning rate at beginning
+assert training_params.get('training_noise') in (False, None)
+
+# create sim params as merged training and neuron params
+sim_params = {}
+sim_params.update(training_params)
 sim_params.update(neuron_params)
 
 net = training.Net(network_layout, sim_params, device)
 
-criterion = utils.LossFunction(network_layout['layer_sizes'][-1],
-                               sim_params['tau_syn'], training_params['xi'],
-                               training_params['alpha'], training_params['beta'], device)
+loss_function = utils.LossFunction(network_layout['layer_sizes'][-1],
+                                   sim_params['tau_syn'], training_params['xi'],
+                                   training_params['alpha'], training_params['beta'], device)
 
 if training_params['optimizer'] == 'adam':
     optimizer = torch.optim.Adam(net.parameters(), lr=training_params['learning_rate'])
@@ -81,23 +93,8 @@ elif training_params['optimizer'] == 'sgd':
 else:
     raise NotImplementedError(f"optimizer {training_params['optimizer']} not implemented")
 
-scheduler = None
 
-# define logging variables
-weight_bumping_steps = []
-progress_train_accuracy = np.full((training_params['epoch_number'] + 1), np.nan)
-progress_val_accuracy = np.full((training_params['epoch_number'] + 1), np.nan)
-progress_times_hidden = np.full(
-    (training_params['epoch_number'] + 1, network_layout['layer_sizes'][0]), np.nan)
-progress_times_label = np.full(
-    (training_params['epoch_number'] + 1, network_layout['layer_sizes'][-1], network_layout['layer_sizes'][-1]),
-    np.nan)
-progress_times_label_std = np.full(
-    (training_params['epoch_number'] + 1, network_layout['layer_sizes'][-1], network_layout['layer_sizes'][-1]),
-    np.nan)
-
-
-# first evaluation
+# validation function
 def validate(net, loader):
     all_outputs, all_labels, all_hiddens, all_losses = [], [], [], []
     num_shown, num_correct = 0, 0
@@ -105,7 +102,7 @@ def validate(net, loader):
         for (input_times, labels) in loader:
             outputs, hiddens = net(input_times)
 
-            loss = criterion(outputs, labels) * len(labels)
+            loss = loss_function(outputs, labels) * len(labels)
 
             firsts = outputs.argmin(1)
             # set firsts to -1 so that they cannot be counted as correct
@@ -128,18 +125,22 @@ def validate(net, loader):
         labels = [item.item() for sublist in all_labels for item in sublist]
         return loss, accuracy, labels, outputs, hiddens
 
-fig_accuracy, ax_accuracy = plt.subplots(1, 1)
-fig_labeltimes, axes_labeltimes = plt.subplots(3, 1, sharex=True, sharey=True)
-fig_labeltimes.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, 
-                               wspace=0.4, hspace=0.4)
-fig_accuracy.show()
-fig_accuracy.canvas.draw()
-fig_labeltimes.show()
-fig_labeltimes.canvas.draw()
-plt.ioff()
+# define logging variables
+weight_bumping_steps = []
+progress_train_accuracy = np.full((training_params['epoch_number'] + 1), np.nan)
+progress_val_accuracy = np.full((training_params['epoch_number'] + 1), np.nan)
+progress_times_hidden = np.full(
+    (training_params['epoch_number'] + 1, network_layout['layer_sizes'][0]), np.nan)
+progress_times_label = np.full(
+    (training_params['epoch_number'] + 1, network_layout['layer_sizes'][-1], network_layout['layer_sizes'][-1]),
+    np.nan)
+progress_times_label_std = np.full(
+    (training_params['epoch_number'] + 1, network_layout['layer_sizes'][-1], network_layout['layer_sizes'][-1]),
+    np.nan)
 
 
-def evaluate_and_plot(epoch):
+def evaluate_and_plot(epoch, listoffigs, print_result=lambda _: False):
+    [(fig_accuracy, ax_accuracy), (fig_labeltimes, axes_labeltimes)] = listoffigs
     # ### evaluation
     loss, accuracy, labels, outputs, hiddens = validate(net, loader_val)
     # generating mean times
@@ -152,7 +153,7 @@ def evaluate_and_plot(epoch):
     # saving data
     progress_val_accuracy[epoch + 1] = accuracy
 
-    if debug_plot:
+    if debug_plotAtRuntime:
         # ### plotting
         ax_accuracy.clear()
         ax_accuracy.plot(progress_val_accuracy * 100)
@@ -178,17 +179,25 @@ def evaluate_and_plot(epoch):
         axes_labeltimes[-1].set_ylim(0.1, 2)
         axes_labeltimes[-1].set_xlabel("epochs [1]")
         fig_labeltimes.canvas.draw()
+    if print_result(epoch):
+        print("epoch {0}: validation accuracy: {1:.1f}%, validation loss: {2:.5f}".format(
+            epoch, accuracy * 100, loss),
+            flush=True)
 
 
-bump_val = training_params['weight_bumping_value']
-last_weights_bumped = -2  # means no bumping happened last time
-last_learning_rate = 0  # for printing learning rate at beginning
-# noisy_training = training_params.get('training_noise') not in (False, None)
-assert training_params.get('training_noise') in (False, None)
-
-
+# do a stunt to have the figures appear at the correct position in the notebook
+fig_accuracy, ax_accuracy = plt.subplots(1, 1)
+fig_labeltimes, axes_labeltimes = plt.subplots(3, 1, sharex=True, sharey=True)
+fig_labeltimes.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, 
+                               wspace=0.4, hspace=0.4)
+fig_accuracy.show()
+fig_accuracy.canvas.draw()
+fig_labeltimes.show()
+fig_labeltimes.canvas.draw()
+plt.ioff()
+listoffigs = [(fig_accuracy, ax_accuracy), (fig_labeltimes, axes_labeltimes)]
 # right before training loop plot evaluation of untrained network
-evaluate_and_plot(-1)
+evaluate_and_plot(-1, listoffigs)
 # training loop
 for epoch in range(training_params['epoch_number']):
     train_loss = []
@@ -214,7 +223,7 @@ for epoch in range(training_params['epoch_number']):
         if last_weights_bumped != -2:  # means bumping happened
             weight_bumping_steps.append(epoch * len(loader_train) + j)
         else:
-            loss = criterion(label_times, labels)
+            loss = loss_function(label_times, labels)
             loss.backward()
             optimizer.step()
             # on hardware we need extra step to write weights
@@ -233,17 +242,7 @@ for epoch in range(training_params['epoch_number']):
     # end of epoch evaluation
     train_accuracy = num_correct / num_shown if num_shown > 0 else np.nan
 
-    evaluate_and_plot(epoch)
+    evaluate_and_plot(epoch, listoffigs, print_result=debug_printIntermediateValidation)
 
-with torch.no_grad():
-    validate_loss, validate_accuracy, validate_outputs, validate_labels, _ = training.validation_step(
-        net, criterion, loader_val, device)
-print("train accuracy: {4:.3f}, validation accuracy: {1:.3f},"
-      "trainings loss: {2:.5f}, validation loss: {3:.5f}".format(
-          0, validate_accuracy,
-          np.mean(train_loss) if len(train_loss) > 0 else np.NaN,
-          validate_loss, train_accuracy),
-      flush=True)
-
-debug_plot = True
-evaluate_and_plot(epoch)
+debug_plotAtRuntime = True  # to make sure the plots are printed eventually
+evaluate_and_plot(epoch, listoffigs, print_result=lambda _: True)

@@ -1,6 +1,6 @@
 #!python3
 import matplotlib as mpl
-mpl.use('Agg')
+# mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -829,9 +829,11 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
 
     if training_params['optimizer'] == 'adam':
         optimizer = torch.optim.Adam(net.parameters(), lr=training_params['learning_rate'])
-    else:
+    elif training_params['optimizer'] == 'sgd':
         optimizer = torch.optim.SGD(net.parameters(), lr=training_params['learning_rate'],
                                     momentum=training_params['momentum'])
+    else:
+        raise NotImplementedError(f"optimizer {training_params['optimizer']} not implemented")
     scheduler = None
     if 'lr_scheduler' in training_params.keys():
         scheduler = setup_lr_scheduling(training_params['lr_scheduler'], optimizer)

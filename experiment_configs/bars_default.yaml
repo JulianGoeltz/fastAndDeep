@@ -17,6 +17,7 @@ training_params:
   batch_size: 30
   batch_size_eval: 200
   beta: 1.
+  clip_weights_max: false
   enforce_cpu: False
   epoch_number: 500
   epoch_snapshots: [10, 35]
@@ -29,6 +30,7 @@ training_params:
   optimizer: adam
   print_step_percent: 5.0
   resolution: 0.01
+  rounding_precision: false
   sim_time: 4.0
   torch_seed: 61231231
   training_noise: false
