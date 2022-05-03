@@ -19,7 +19,17 @@ temp_for_jenkins:
         synapse_bias: 1000
         taum : 6.
 chip55_capocaccia:
-        calibration: /home/jgoeltz/hxsoftware_20220502_v3/fastAndDeep/src/calibrations/chip55_capocaccia.npz
+        calibration: calibrations/chip55_port10360_capocaccia.npz
+        neuron_params:
+                leak: 0.70
+                threshold: 1.08
+                g_leak: 4.
+                tau_syn: 1.
+        scale_weights: 30
+        synapse_bias: 1000
+        taum : 6.
+chip63_port10060_capocaccia:
+        calibration: calibrations/chip63_port10060_capocaccia.npz
         neuron_params:
                 leak: 0.70
                 threshold: 1.08
