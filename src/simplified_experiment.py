@@ -59,11 +59,6 @@ else:
                  f"({os.environ.get('SLURM_HARDWARE_LICENSES')}), but 'use_hicannx' is False. \n"
                  "Either execute without hw resources, or set 'use_hicannx'")
 
-config_name = osp.splitext(osp.basename(filename))
-dirname = '{0}_{1:%Y-%m-%d_%H-%M-%S}'.format(config_name, datetime.datetime.now())
-# net = training.train(training_params, network_layout, neuron_params,
-#                      dataset_train, dataset_val, dataset_test, dirname, filename)
-
 torch.manual_seed(training_params['torch_seed'])
 np.random.seed(training_params['numpy_seed'])
 device = torch.device('cpu')
