@@ -18,7 +18,7 @@ temp_for_jenkins:
         scale_weights: 30
         synapse_bias: 1000
         taum : 6.
-chip55_capocaccia:
+chip55_port10360_capocaccia:
         calibration: calibrations/chip55_port10360_capocaccia.npz
         neuron_params:
                 leak: 0.70
