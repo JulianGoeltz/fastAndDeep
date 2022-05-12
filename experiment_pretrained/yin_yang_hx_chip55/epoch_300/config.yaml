@@ -1,0 +1,68 @@
+dataset: yin_yang
+network_layout:
+  bias_times:
+  - - 0.9
+    - 0.9
+    - 0.9
+    - 0.9
+    - 0.9
+  - []
+  layer_sizes:
+  - 120
+  - 3
+  n_biases:
+  - 5
+  - 0
+  n_inputs: 20
+  n_layers: 2
+  weight_means:
+  - 0.1
+  - 0.075
+  weight_stdevs:
+  - 0.12
+  - 0.15
+neuron_params:
+  g_leak: 4.0
+  leak: 0.7
+  tau_syn: 1.0
+  threshold: 1.08
+training_params:
+  alpha: 0.005
+  batch_size: 40
+  batch_size_eval: 200
+  beta: 1.0
+  enforce_cpu: false
+  epoch_number: 300
+  epoch_snapshots:
+  - 1
+  - 5
+  - 10
+  - 15
+  - 50
+  - 100
+  - 150
+  - 200
+  - 300
+  learning_rate: 0.002
+  lr_scheduler:
+    gamma: 0.95
+    step_size: 20
+    type: StepLR
+  max_dw_norm: 0.2
+  max_num_missing_spikes:
+  - 0.3
+  - 0.05
+  momentum: 0
+  numpy_seed: 12345
+  optimizer: adam
+  print_step_percent: 5.0
+  resolution: 0.01
+  sim_time: 4.0
+  torch_seed: 2000
+  training_noise: false
+  use_forward_integrator: false
+  use_hicannx: true
+  weight_bumping_exp: true
+  weight_bumping_targeted: true
+  weight_bumping_value: 0.0005
+  xi: 0.2

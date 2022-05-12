@@ -1,0 +1,14 @@
+chip55_port10360_capocaccia:
+  calibration: calibrations/chip55_port10360_capocaccia.npz
+  intrinsic_timescale: 1.0e-06
+  neuron_params:
+    g_leak: 4.0
+    leak: 0.7
+    tau_syn: 1.0
+    threshold: 1.08
+  retries: 5
+  scale_times: 6.0e-06
+  scale_weights: 30
+  single_simtime: 30.0
+  synapse_bias: 1000
+  taum: 6.0

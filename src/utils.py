@@ -384,6 +384,9 @@ def network_load(path, basename, device):
 
         if error == "":
             net.hx_lastsetweights = [torch.full(l.weights.data.shape, -64) for l in net.layers]
+            with open(osp.join(path, "hx_settings.yaml"), 'r') as f:
+                net.hx_settings = yaml.load(f, Loader=yaml.SafeLoader)[
+                    os.environ.get('SLURM_HARDWARE_LICENSES')]
             net.init_hicannx(device)
         else:
             print(f"#### untrained network loaded -> not initialising, also got error:\n{error}")
