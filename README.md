@@ -33,6 +33,13 @@ git submodule update --init
 ```
 
 ## Functionality
+### Run demo notebook
+Assuming the software was installed in a virtualenv, the environment must be provided as a kernel for jupyter:
+```
+ipython kernel install --user --name=<venvname>
+```
+The demo notebook is located in the `src` directory.
+
 ### Training
 Test e.g. the `yin_yang` data set by going into `src` and running 
 ```
@@ -77,4 +84,4 @@ In order to use the latter, in `utils.py` change `import utils_spiketime_et as u
 	* `calibration/` includes a calibration file for chip
 
 ## References
-* Fast and deep: energy-efficient neuromorphic learning with first-spike times; *J. Göltz∗, L. Kriener∗, A. Baumbach, S. Billaudelle, O. Breitwieser, B. Cramer, D. Dold, A. F. Kungl, W. Senn, J. Schemmel, K. Meier, M. A. Petrovici*; https://www.nature.com/articles/s42256-021-00388-x (https://arxiv.org/abs/1912.11443)
+* Fast and deep: energy-efficient neuromorphic learning with first-spike times; *J. Göltz∗, L. Kriener∗, A. Baumbach, S. Billaudelle, O. Breitwieser, B. Cramer, D. Dold, A. F. Kungl, W. Senn, J. Schemmel, K. Meier, M. A. Petrovici*; https://arxiv.org/abs/1912.11443

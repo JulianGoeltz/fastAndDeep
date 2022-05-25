@@ -55,7 +55,7 @@ def run_inference(dirname, filename, dataset, untrained, reference, device=None,
             layer.sim_params['steps'] = int(np.ceil(training_params['sim_time'] / training_params['resolution']))
             print(layer.sim_params['steps'])
             layer.sim_params['decay_syn'] = float(np.exp(-training_params['resolution'] / neuron_params['tau_syn']))
-            layer.sim_params['decay_mem'] = float(np.exp(-training_params['resolution'] / neuron_params['tau_syn']))
+            layer.sim_params['decay_mem'] = float(np.exp(-training_params['resolution'] / neuron_params['tau_mem']))
     # might use different device for analysis than training
     for i, bias in enumerate(net.biases):
         net.biases[i] = utils.to_device(bias, device)
@@ -802,7 +802,7 @@ def spiketime_hist(datatype, dataset, dirname='tmp', filename='', show=False, re
     axes[0][1].hist([pos_no_spike] * no_spike_late_u, bins_no_spike, alpha=0.7, rwidth=0.9, color='C1')
     axes[0][1].legend()
     axes[0][0].set_title('untrained')
-    axes[0][0].hist(hiddens_no_inf_u.cpu().detach().flatten(), bins, alpha=0.7, rwidth=0.9,
+    axes[0][0].hist(hiddens_no_inf_u.cpu().detach().numpy().flatten(), bins, alpha=0.7, rwidth=0.9,
                     color='grey', label='hidden neurons')
     axes[0][0].hist([pos_no_spike] * no_spike_hidden_u, bins_no_spike, alpha=0.7, rwidth=0.9, color='grey')
     # axes[2].legend()

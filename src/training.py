@@ -1,6 +1,6 @@
 #!python3
 import matplotlib as mpl
-mpl.use('Agg')
+# mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -337,7 +337,7 @@ class Net(torch.nn.Module):
 
 def load_data(dirname, filename, dataname):
     path = dirname + '/' + filename + dataname
-    data = np.load(path)
+    data = np.load(path, allow_pickle=True)
     return data
 
 
@@ -406,9 +406,6 @@ def check_bump_weights(net, hidden_times, label_times, training_params, epoch, b
         non_spikes = torch.isinf(times) + torch.isnan(times)
         num_nonspikes = float(non_spikes.bool().sum())
         if num_nonspikes / denominator > training_params['max_num_missing_spikes'][i]:
-            # print("epoch {0}, batch {1}: missing hidden spikes "
-            #       "(layer {2}), bumping hidden weights by {3} (targeted_bump={4})".format(
-            #           epoch, batch, i, bump_val, training_params['targeted_weight_bumping']))
             weights_bumped = i
             break
     else:
@@ -418,8 +415,6 @@ def check_bump_weights(net, hidden_times, label_times, training_params, epoch, b
         non_spikes = torch.isinf(label_times) + torch.isnan(label_times)
         num_nonspikes = float(non_spikes.bool().sum())
         if num_nonspikes / denominator > training_params['max_num_missing_spikes'][-1]:
-            # print("epoch {0}, batch {1}: missing label spikes, bumping weights by {2} (targeted_bump={3})".format(
-            #     epoch, batch, bump_val, training_params['targeted_weight_bumping']))
             weights_bumped = -1
     if weights_bumped != -2:
         if training_params['weight_bumping_exp'] and weights_bumped == last_weights_bumped:
@@ -434,6 +429,10 @@ def check_bump_weights(net, hidden_times, label_times, training_params, epoch, b
             net.layers[i].weights.data += bumps
         else:
             net.layers[i].weights.data += bump_val
+
+        # print("epoch {0}, batch {1}: missing {4} spikes, bumping weights by {2} (targeted_bump={3})".format(
+        #     epoch, batch, bump_val, training_params['weight_bumping_targeted'],
+        #     "label" if weights_bumped == -1 else "hidden"))
     return weights_bumped, bump_val
 
 
@@ -730,10 +729,12 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
                 tmp_class_outputs[true_label].append(validate_outputs[pattern].cpu().detach().numpy())
             for i in range(num_classes):
                 tmp_times = np.array(tmp_class_outputs[i])
-                inf_mask = np.isinf(tmp_times)
-                tmp_times[inf_mask] = np.NaN
-                mean_times = np.nanmean(tmp_times, 0)
-                std_times = np.nanstd(tmp_times, 0)
+                tmp_times[np.isinf(tmp_times)] = np.NaN
+                mask_notAllNan = np.logical_not(np.isnan(tmp_times)).sum(0) > 0
+                mean_times = np.ones(tmp_times.shape[1:]) * np.NaN
+                std_times = np.ones(tmp_times.shape[1:]) * np.NaN
+                mean_times[mask_notAllNan] = np.nanmean(tmp_times[:, mask_notAllNan], 0)
+                std_times[mask_notAllNan] = np.nanstd(tmp_times[:, mask_notAllNan], 0)
                 mean_validate_outputs_sorted[i].append(mean_times)
                 std_validate_outputs_sorted[i].append(std_times)
 
@@ -745,7 +746,8 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
             print("... {0}% done, train accuracy: {4:.3f}, validation accuracy: {1:.3f},"
                   "trainings loss: {2:.5f}, validation loss: {3:.5f}".format(
                       epoch * 100 / training_params['epoch_number'], validate_accuracy,
-                      np.mean(train_loss), validate_loss, train_accuracy),
+                      np.mean(train_loss) if len(train_loss) > 0 else np.NaN,
+                      validate_loss, train_accuracy),
                   flush=True)
 
         result_dict = {'all_weights': all_weights,
@@ -827,9 +829,11 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
 
     if training_params['optimizer'] == 'adam':
         optimizer = torch.optim.Adam(net.parameters(), lr=training_params['learning_rate'])
-    else:
+    elif training_params['optimizer'] == 'sgd':
         optimizer = torch.optim.SGD(net.parameters(), lr=training_params['learning_rate'],
                                     momentum=training_params['momentum'])
+    else:
+        raise NotImplementedError(f"optimizer {training_params['optimizer']} not implemented")
     scheduler = None
     if 'lr_scheduler' in training_params.keys():
         scheduler = setup_lr_scheduling(training_params['lr_scheduler'], optimizer)

@@ -128,7 +128,7 @@ class EqualtimeFunctionEventbased(torch.autograd.Function):
             print('found nan or inf in propagated_error or weight_gradient, something is wrong oO')
             sys.exit()
 
-        return new_propagated_error, weight_gradient, None, None, None, None
+        return new_propagated_error, weight_gradient, None, None, None
 
 
 class EqualtimeFunctionIntegrator(EqualtimeFunctionEventbased):
@@ -273,6 +273,7 @@ class EqualtimeLayer(torch.nn.Module):
     def forward(self, input_times, output_times=None):
         # depending on configuration use either eventbased, integrator or the hardware
         if not self.use_hicannx:
+            assert output_times is None
             if self.use_forward_integrator:
                 return EqualtimeFunctionIntegrator.apply(input_times, self.weights,
                                                          self.sim_params,

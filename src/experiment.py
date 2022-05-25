@@ -34,6 +34,11 @@ if __name__ == '__main__':
         dataset_train = datasets.YinYangDataset(size=5000, seed=42, multiply_input_layer=multiply_input_layer)
         dataset_val = datasets.YinYangDataset(size=1000, seed=41, multiply_input_layer=multiply_input_layer)
         dataset_test = datasets.YinYangDataset(size=1000, seed=40, multiply_input_layer=multiply_input_layer)
+    elif dataset == "bars":
+        multiply_input_layer = 1 if not training_params['use_hicannx'] else 5
+        dataset_train = datasets.BarsDataset(3, noise_level=0, multiply_input_layer=multiply_input_layer)
+        dataset_val = datasets.BarsDataset(3, noise_level=0, multiply_input_layer=multiply_input_layer)
+        dataset_test = datasets.BarsDataset(3, noise_level=0, multiply_input_layer=multiply_input_layer)
     elif dataset == "xor":
         dataset_train = datasets.XOR()
         dataset_val = datasets.XOR()
@@ -77,6 +82,8 @@ if __name__ == '__main__':
                     np.array(times).repeat(multiply_bias).tolist()  # list for yaml dump
                     for times in network_layout['bias_times']
                 ]
+            elif dataset == "bars":
+                network_layout['n_inputs'] = network_layout['n_inputs'] * multiply_input_layer
         else:
             if os.environ.get('SLURM_HARDWARE_LICENSES') is not None:
                 sys.exit("There are SLURM_HARDWARE_LICENSES available "

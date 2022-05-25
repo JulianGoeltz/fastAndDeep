@@ -17,7 +17,6 @@ training_params:
   batch_size: 40
   batch_size_eval: 200
   beta: 1.
-  bump_weight_value: 0.0005
   enforce_cpu: False
   epoch_number: 300
   epoch_snapshots: [1, 5, 10, 15, 50, 100, 150, 200, 300]
