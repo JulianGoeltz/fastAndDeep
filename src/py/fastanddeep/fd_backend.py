@@ -19,11 +19,11 @@ import time
 import calix.common
 import calix.constants
 import pyhxcomm_vx as hxcomm
-import pyhaldls_vx_v2 as haldls
-import pystadls_vx_v2 as stadls
-import pyfisch_vx_v2 as fisch
-import pylola_vx_v2 as lola
-import pyhalco_hicann_dls_vx_v2 as halco
+import pyhaldls_vx_v3 as haldls
+import pystadls_vx_v3 as stadls
+import pyfisch_vx_v3 as fisch
+import pylola_vx_v3 as lola
+import pyhalco_hicann_dls_vx_v3 as halco
 import gonzales
 
 import utils
