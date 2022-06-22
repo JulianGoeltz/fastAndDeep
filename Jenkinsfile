@@ -2,7 +2,7 @@
 import groovy.transform.Field
 
 
-@Field String notificationChannel = "#hicann-dls-users"
+@Field String notificationChannel = "#time-to-first-spike-on-hx"
 
 // only sent one message to mattermost
 @Field Boolean SentMattermost = false;
