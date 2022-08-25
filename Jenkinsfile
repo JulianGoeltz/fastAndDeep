@@ -61,7 +61,7 @@ stage("waf setup") {
 		wafSetup(
 			projects: ["model-hx-strobe"],
 			setupOptions: "--clone-depth=1 --gerrit-changes=16792",
-			// CS 16792 for v3 compability
+			// CS 16792 for v3 compability (of strobe)
 			noExtraStage: true
 		)
 	}

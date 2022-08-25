@@ -13,18 +13,6 @@ parser.add_argument("--output", type=str)
 
 args = parser.parse_args()
 
-# # SHD
-# targets = {
-#         "leak": 80,
-#         "reset": 80,
-#         "threshold": 150,
-#         "tau_mem": 10e-6,
-#         "tau_syn": 10e-6,
-#         "i_synin_gm": 500,
-#         "membrane_capacitance": 63,
-#         "refractory_time": 2.
-#         }
-
 targets = {
         "leak": 80,
         "reset": 80,

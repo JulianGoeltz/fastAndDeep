@@ -16,10 +16,10 @@ import unittest
 import warnings
 import yaml
 
-import pyfisch_vx as fisch
-import pyhalco_hicann_dls_vx_v2 as halco
-import pyhaldls_vx_v2 as haldls
-import pystadls_vx_v2 as stadls
+import pyfisch_vx_v3 as fisch
+import pyhalco_hicann_dls_vx_v3 as halco
+import pyhaldls_vx_v3 as haldls
+import pystadls_vx_v3 as stadls
 import training
 import utils
 
@@ -253,17 +253,10 @@ class CalibParameterDistribution(unittest.TestCase):
                           "tested with 'SLURM_HARDWARE_LICENSES' variable")
         with open('py/hx_settings.yaml') as f:
             hx_settings = yaml.load(f, Loader=yaml.SafeLoader)
-        hx_setup = os.environ.get('SLURM_HARDWARE_LICENSES')
-        try:
-            self.hx_setup_no = int(hx_setup[1:3])
-        except ValueError:
-            raise OSError("Setup number is extracted from env variable SLURM_HARDWARE_LICENSES "
-                          f"({hx_setup}), expected to be of the form "
-                          "'W[setupno]F3'")
+        self.hx_setup_no = os.environ.get('SLURM_HARDWARE_LICENSES')
 
         if self.hx_setup_no not in hx_settings:
-            raise OSError(f"Setup no {self.hx_setup_no} (from SLURM_HARDWARE_LICENSES variable "
-                          f"'{hx_setup}') is not described in hx settings file")
+            raise OSError(f"Setup no {self.hx_setup_no} is not described in hx settings file, only {hx_settings.keys()}")
         self.hx_settings = hx_settings[self.hx_setup_no]
         print(f"$$ Testing on setup {self.hx_setup_no} with the following settings (others derived, see Net.init)")
         pprint(self.hx_settings, indent=5)
@@ -295,8 +288,7 @@ class CalibParameterDistribution(unittest.TestCase):
         self.all_neurons = {neuron: {} for neuron in params['neurons']}
 
         # create net
-        self.net = training.Net(self.network_layout, self.sim_params, 0,  # last is dw norm
-                                self.device)
+        self.net = training.Net(self.network_layout, self.sim_params, self.device)
         print("setting net shift label neurons zero")
         self.net.hx_settings['label_neurons_shift'] = 0
         self.sim_params = self.hx_settings['neuron_params']
@@ -988,7 +980,7 @@ class CalibParameterDistribution(unittest.TestCase):
                     coord = halco.AtomicNeuronOnDLS(halco.EnumRanged_512_(neuron))
                     builder = stadls.PlaybackProgramBuilder()
                     for i in range(params['batchsize']):
-                        builder.wait_until(
+                        builder.block_until(
                             halco.TimerOnDLS(),
                             (i + 1) * 20 * int(self.hx_settings['taum']) * fisch.fpga_clock_cycles_per_us)
                         builder.write(coord.toNeuronResetOnDLS(), haldls.NeuronReset())

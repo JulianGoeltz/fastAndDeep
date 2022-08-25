@@ -271,7 +271,7 @@ class FandDBackend(strobe.backend.StrobeBackend):
                     larger than the maximum ({self.max_hw_batch_size}).")
 
         times = input_spikes[0][:, 0] + self._timing_offset
-        labels = input_spikes[0][:, 1].astype(np.int)
+        labels = input_spikes[0][:, 1].astype(np.int64)
 
         # shift inputs in case the first layer is recurrent
         labels += self._input_shift
@@ -427,7 +427,7 @@ class FandDBackend(strobe.backend.StrobeBackend):
             samples = program.madc_samples.to_numpy()
             # TODO: there seems to be an offset (100e-6 is good)
             times = samples["chip_time"][10:] / 125 * 1e-6 - self._timing_offset
-            trace = samples["value"][10:].astype(np.float) * 2e-3
+            trace = samples["value"][10:].astype(np.float64) * 2e-3
             # fig, ax = plt.subplots(1, 1)
             # ax.plot(times, trace)
             # fig.savefig("tmp.png")
