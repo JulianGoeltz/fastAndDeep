@@ -128,7 +128,7 @@ stage("create calib") {
 					jesh("module list")
 					jesh("module show localdir")
 					jeshWithLoggedStds(
-						"cd model-hx-strobe/experiments/yinyang; python generate_calibration.py --output ../../../fastAndDeep/src/calibrations/tmp_jenkins.npz",
+						"cd fastAndDeep/src; python py/generate_calibration.py --output calibrations/tmp_jenkins.npz",
 						"tmp_stdout.log",
 						"tmp_stderr.log"
 					)
