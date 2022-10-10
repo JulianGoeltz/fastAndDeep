@@ -463,37 +463,31 @@ class FandDBackend(strobe.backend.StrobeBackend):
         program = elf_file.read_program()
         program_on_ppu = halco.PPUMemoryBlockOnPPU(
             halco.PPUMemoryWordOnPPU(0),
-            halco.PPUMemoryWordOnPPU(program.size() - 1)
+            halco.PPUMemoryWordOnPPU(program.internal.size() - 1)
         )
+
+        program_on_fpga = None
+        if program.external:
+            program_on_fpga = halco.ExternalPPUMemoryBlockOnFPGA(
+                halco.ExternalPPUMemoryByteOnFPGA(0),
+                halco.ExternalPPUMemoryByteOnFPGA(program.external.size() - 1)
+            )
+
+        for ppu in range(2):
+            # ensure PPU is in reset state
+            builder.write(halco.PPUControlRegisterOnDLS(ppu), ppu_control_reg_reset)
+
+        if program_on_fpga:
+            builder.write(program_on_fpga, program.external)
 
         for ppu in range(2):
             program_on_dls = halco.PPUMemoryBlockOnDLS(program_on_ppu,
                                                        halco.PPUOnDLS(ppu))
 
-            # ensure PPU is in reset state
-            builder.write(halco.PPUControlRegisterOnDLS(ppu), ppu_control_reg_reset)
-
-            # manually initialize memory where symbols will lie, issue #3477
-            for _name, symbol in elf_symbols.items():
-                value = haldls.PPUMemoryBlock(symbol.coordinate.toPPUMemoryBlockSize())
-                symbol_on_dls = halco.PPUMemoryBlockOnDLS(symbol.coordinate,
-                                                          halco.PPUOnDLS(ppu))
-                builder.write(symbol_on_dls, value)
-
-            builder.write(program_on_dls, program)
-            builder.write(halco.PPUControlRegisterOnDLS(ppu), ppu_control_reg_run)
-
-            builder.write(
-                halco.PPUMemoryWordOnDLS(self._ppu_n_ppus[0], halco.PPUOnDLS(ppu)),
-                haldls.PPUMemoryWord(haldls.PPUMemoryWord.Value(self._n_vectors)))
-
-            builder.write(
-                halco.PPUMemoryWordOnDLS(self._ppu_ppu_id[0], halco.PPUOnDLS(ppu)),
-                haldls.PPUMemoryWord(haldls.PPUMemoryWord.Value(ppu)))
+            builder.write(program_on_dls, program.internal)
 
         # stop second PPU if it is not used
         if True:
-            builder.write(program_on_dls, program)
             builder.write(halco.PPUControlRegisterOnDLS(1), ppu_control_reg_run)
             command = haldls.PPUMemoryWord(haldls.PPUMemoryWord.Value(PPUSignal.HALT.value))
             builder.write(halco.PPUMemoryWordOnDLS(self._ppu_signal_coordinate[0], halco.PPUOnDLS(0)), command)
