@@ -18,7 +18,8 @@ def jeshWithLoggedStds(String script, String filenameStdout, String filenameStde
     return jesh(script: "set -o pipefail; ( ( ( ${script} ) | tee ${filenameStdout} ) 3>&1 1>&2- 2>&3- ) | tee ${filenameStderr} ")
 }
 
-def recordErrors(int success = 0) {
+def recordErrors(int success) {
+	print("recordErrors is called with success ${success}");
 	String filename_errors = '/jenkins/results/p_jg_FastAndDeep/execution_stats.json';
 
 	runOnSlave(label: "frontend") {
@@ -64,7 +65,7 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 	SentMattermost = true
 	currentBuild.result = 'FAILED'
 
-	recordErrors()
+	recordErrors(success=0);
 
 	throw t
 }
