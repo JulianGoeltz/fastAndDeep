@@ -18,6 +18,20 @@ def jeshWithLoggedStds(String script, String filenameStdout, String filenameStde
     return jesh(script: "set -o pipefail; ( ( ( ${script} ) | tee ${filenameStdout} ) 3>&1 1>&2- 2>&3- ) | tee ${filenameStderr} ")
 }
 
+def recordErrors(int success = 0) {
+	String filename_errors = '/jenkins/results/p_jg_FastAndDeep/execution_stats.json';
+
+	runOnSlave(label: "frontend") {
+		// add to the json file
+		jesh(
+			"jq --arg success '${success}' --arg BUILD_NUMBER '${env.BUILD_NUMBER}' --arg STAGE_NAME '${env.STAGE_NAME}' --arg HX 'W${wafer}F${fpga}' "
+			+
+			'\'. + {($BUILD_NUMBER): {"HX": $HX, "laststep": $STAGE_NAME, "success": $success}}\' ' + "${filename_errors} | tee ${filename_errors}.tmp"
+		);
+		jesh("mv ${filename_errors}.tmp ${filename_errors}");
+	}
+}
+
 
 def beautifulMattermostSend(Throwable t, Boolean readError) {
 	if (SentMattermost) {
@@ -49,6 +63,9 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 	print(message)
 	SentMattermost = true
 	currentBuild.result = 'FAILED'
+
+	recordErrors()
+
 	throw t
 }
 
@@ -263,6 +280,8 @@ stage("finalisation") {
 					"tmp_stderr.log"
 				)
 			}
+			// record that all went through
+			recordErrors(success=1);
 		} catch (Throwable t) {
 			beautifulMattermostSend(t, true);
 		}
