@@ -27,7 +27,9 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 	String tmpErrorMsg = ""
 	if(readError) {
 		runOnSlave(label: "frontend") {
-			tmpErrorMsg = readFile('tmp_stderr.log')
+			// if file does not exist, create it
+			jesh("[ -f tmp_stderr.log ] || touch tmp_stderr.log");
+			tmpErrorMsg = readFile('tmp_stderr.log');
 		}
 		// too long messages lead to (cryptic) errors, so shorten the error message
 		if (tmpErrorMsg.length() > 1000 ) {
@@ -78,13 +80,17 @@ stage("waf configure") {
 }
 
 stage("waf install") {
-	onSlurmResource(partition: "jenkins",
-			"cpus-per-task": 4,
-			time: "1:0:0",
-			mem: "24G") {
-		inSingularity(app: "visionary-dls") {
-			jesh("waf install")
+	try {
+		onSlurmResource(partition: "jenkins",
+				"cpus-per-task": 4,
+				time: "1:0:0",
+				mem: "24G") {
+			inSingularity(app: "visionary-dls") {
+				jesh("waf install")
+			}
 		}
+	} catch (Throwable t) {
+		beautifulMattermostSend(t, true);
 	}
 }
 
