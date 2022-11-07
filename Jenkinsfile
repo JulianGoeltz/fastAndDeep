@@ -65,7 +65,7 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 	SentMattermost = true
 	currentBuild.result = 'FAILED'
 
-	recordErrors(success=0);
+	recordErrors(success: 0);
 
 	throw t
 }
@@ -282,7 +282,7 @@ stage("finalisation") {
 				)
 			}
 			// record that all went through
-			recordErrors(success=1);
+			recordErrors(success: 1);
 		} catch (Throwable t) {
 			beautifulMattermostSend(t, true);
 		}
