@@ -270,6 +270,11 @@ stage("finalisation") {
 			jesh('cd fastAndDeep/src/py; python jenkins_elastic.py  --filename="jenkinssummary_{dataset}_longNolegend.png" --firstBuild=50 --nolegend --reduced_xticks')
 		}
 		archiveArtifacts 'fastAndDeep/src/py/jenkinssummary_yin_yang_longNolegend.png'
+		// write short and long term stats into a file
+		inSingularity(app: "visionary-dls") {
+			jesh('cd fastAndDeep/src/py; (python jenkins_executionStats.py --numberBuilds=10; echo; echo; python jenkins_executionStats.py --numberBuilds=50) > jenkinsExecutionStats.log')
+		}
+		archiveArtifacts 'fastAndDeep/src/py/jenkinsExecutionStats.log'
 		// test whether accuracy is too low
 		try {
 			inSingularity(app: "visionary-dls") {
