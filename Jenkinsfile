@@ -2,7 +2,7 @@
 import groovy.transform.Field
 
 
-@Field String notificationChannel = "#hicann-dls-users"
+@Field String notificationChannel = "#time-to-first-spike-on-hx"
 
 // only sent one message to mattermost
 @Field Boolean SentMattermost = false;
@@ -18,6 +18,20 @@ def jeshWithLoggedStds(String script, String filenameStdout, String filenameStde
     return jesh(script: "set -o pipefail; ( ( ( ${script} ) | tee ${filenameStdout} ) 3>&1 1>&2- 2>&3- ) | tee ${filenameStderr} ")
 }
 
+def recordExitSuccess(int success) {
+	String filename_errors = '/jenkins/results/p_jg_FastAndDeep/execution_stats.json';
+
+	runOnSlave(label: "frontend") {
+		// add to the json file
+		jesh(
+			"jq --arg success '${success}' --arg BUILD_NUMBER '${env.BUILD_NUMBER}' --arg STAGE_NAME '${env.STAGE_NAME}' --arg HX 'W${wafer}F${fpga}' --arg DATE " + '"$(date +%s)" '
+			+
+			'\'. + {($BUILD_NUMBER): {"HX": $HX, "laststep": $STAGE_NAME, "success": $success, "timestamp": $DATE}}\' ' + "${filename_errors} | tee ${filename_errors}.tmp"
+		);
+		jesh("mv ${filename_errors}.tmp ${filename_errors}");
+	}
+}
+
 
 def beautifulMattermostSend(Throwable t, Boolean readError) {
 	if (SentMattermost) {
@@ -27,7 +41,9 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 	String tmpErrorMsg = ""
 	if(readError) {
 		runOnSlave(label: "frontend") {
-			tmpErrorMsg = readFile('tmp_stderr.log')
+			// if file does not exist, create it
+			jesh("[ -f tmp_stderr.log ] || touch tmp_stderr.log");
+			tmpErrorMsg = readFile('tmp_stderr.log');
 		}
 		// too long messages lead to (cryptic) errors, so shorten the error message
 		if (tmpErrorMsg.length() > 1000 ) {
@@ -43,10 +59,13 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 		channel: notificationChannel,
 		message: message,
 		failOnError: true,
-		endpoint: "https://brainscales-r.kip.uni-heidelberg.de:6443/hooks/qrn4j3tx8jfe3dio6esut65tpr")
+		endpoint: "https://chat.bioai.eu:6443/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 	print(message)
 	SentMattermost = true
 	currentBuild.result = 'FAILED'
+
+	recordExitSuccess(0);
+
 	throw t
 }
 
@@ -60,8 +79,8 @@ stage("waf setup") {
 	inSingularity(app: "visionary-dls") {
 		wafSetup(
 			projects: ["model-hx-strobe"],
-			setupOptions: "--clone-depth=1 --gerrit-changes=16792",
-			// CS 16792 for v3 compability (of strobe)
+			setupOptions: "--clone-depth=1",
+			// --gerrit-changes=16792
 			noExtraStage: true
 		)
 	}
@@ -78,13 +97,17 @@ stage("waf configure") {
 }
 
 stage("waf install") {
-	onSlurmResource(partition: "jenkins",
-			"cpus-per-task": 4,
-			time: "1:0:0",
-			mem: "24G") {
-		inSingularity(app: "visionary-dls") {
-			jesh("waf install")
+	try {
+		onSlurmResource(partition: "jenkins",
+				"cpus-per-task": 4,
+				time: "1:0:0",
+				mem: "24G") {
+			inSingularity(app: "visionary-dls") {
+				jesh("waf install")
+			}
 		}
+	} catch (Throwable t) {
+		beautifulMattermostSend(t, true);
 	}
 }
 
@@ -128,7 +151,7 @@ stage("create calib") {
 					jesh("module list")
 					jesh("module show localdir")
 					jeshWithLoggedStds(
-						"cd model-hx-strobe/experiments/yinyang; python generate_calibration.py --output ../../../fastAndDeep/src/calibrations/tmp_jenkins.npz",
+						"cd fastAndDeep/src; python py/generate_calibration.py --output calibrations/tmp_jenkins.npz",
 						"tmp_stdout.log",
 						"tmp_stderr.log"
 					)
@@ -247,6 +270,12 @@ stage("finalisation") {
 			jesh('cd fastAndDeep/src/py; python jenkins_elastic.py  --filename="jenkinssummary_{dataset}_longNolegend.png" --firstBuild=50 --nolegend --reduced_xticks')
 		}
 		archiveArtifacts 'fastAndDeep/src/py/jenkinssummary_yin_yang_longNolegend.png'
+		// write short and long term stats into a file
+		inSingularity(app: "visionary-dls") {
+			jesh('cd fastAndDeep/src/py; (python jenkins_executionStats.py --numberBuilds=10; echo; echo; python jenkins_executionStats.py --numberBuilds=50) > jenkinsExecutionStats.log')
+			jesh('cd fastAndDeep/src/py; pango-view -qo jenkinsExecutionStats.png jenkinsExecutionStats.log')
+		}
+		archiveArtifacts 'fastAndDeep/src/py/jenkinsExecutionStats.*'
 		// test whether accuracy is too low
 		try {
 			inSingularity(app: "visionary-dls") {
@@ -257,6 +286,8 @@ stage("finalisation") {
 					"tmp_stderr.log"
 				)
 			}
+			// record that all went through
+			recordExitSuccess(1);
 		} catch (Throwable t) {
 			beautifulMattermostSend(t, true);
 		}
@@ -280,6 +311,10 @@ setJobDescription("""
 <p>
   Repository is located <a href="https://github.com/JulianGoeltz/fastanddeep">on GitHub</a>, Jenkinsjob is executed daily in the hour after midnight and should take around 1.5 hours.
   Details on the theory <a href="https://arxiv.org/abs/1912.11443">can be found in the publication arXiv:1912.11443</a>, it is used to classify <a href="https://arxiv.org/abs/2102.08211">the Yin-Yang dataset</a>.
+</p>
+<p>
+  <h1>Execution stats</h1>
+  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/src/py/jenkinsExecutionStats.png"/>
 </p>
 <p>
   <h1>Summary of the last few runs</h1>

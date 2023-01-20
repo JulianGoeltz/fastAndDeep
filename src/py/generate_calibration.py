@@ -19,8 +19,9 @@ targets = {
         "threshold": 150,
         "tau_mem": 6e-6,
         "tau_syn": 6e-6,
-        "i_synin_gm": 500,
+        "i_synin_gm": 700,
         "membrane_capacitance": 63,
+        "synapse_dac_bias": 800,
         "refractory_time": 2e-6
         }
 
