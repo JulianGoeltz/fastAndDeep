@@ -440,9 +440,9 @@ class LossFunctionMSE(torch.nn.Module):
         label_idx = to_device(true_label.clone().type(torch.long).view(-1, 1), self.device)
         true_label_times = label_times.gather(1, label_idx).flatten()
 
-        target = torch.eye(self.number_labels)[true_label] * (self.t_correct - self.t_wrong) + self.t_wrong
+        target = to_device(torch.eye(self.number_labels), self.device)[true_label] * (self.t_correct - self.t_wrong) + self.t_wrong
         loss = 1. / 2. * (label_times - target)**2
-        loss[true_label_times == np.inf] = 100.
+        loss[label_times == np.inf] = 100.
         return loss.mean()
 
     def select_classes(self, outputs):
