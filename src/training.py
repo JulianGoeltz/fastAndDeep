@@ -539,11 +539,11 @@ def save_result_spikes(dirname, filename, train_times, train_labels, train_input
     test_times = np.array([item.detach().cpu().numpy() for item in test_times])
     np.save(dirname + filename + '_train_spiketimes.npy', train_times)
     np.save(dirname + filename + '_train_labels.npy', train_labels)
-    if not (train_inputs is None):
+    if train_inputs is not None:
         np.save(dirname + filename + '_train_inputs.npy', train_inputs)
     np.save(dirname + filename + '_test_spiketimes.npy', test_times)
     np.save(dirname + filename + '_test_labels.npy', test_labels)
-    if not (test_inputs is None):
+    if test_inputs is not None:
         np.save(dirname + filename + '_test_inputs.npy', test_inputs)
     return
 
