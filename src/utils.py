@@ -457,6 +457,30 @@ class LossFunctionMSE(torch.nn.Module):
         return closest_to_target
 
 
+def GetLoss(training_params, number_labels, tau_syn, device):
+    """Dynamically get the loss function depending on the params"""
+    # to be downward compatible
+    if 'loss' in training_params:
+        params = training_params['loss']
+    else:
+        params = {
+            'type': 'TTFS',
+            'alpha': training_params['alpha'],
+            'beta': training_params['beta'],
+            'xi': training_params['xi'],
+        }
+    if params['type'] == 'TTFS':
+        return LossFunction(number_labels, tau_syn,
+                            params['xi'], params['alpha'], params['beta'],
+                            device)
+    elif params['type'] == 'MSE':
+        return LossFunctionMSE(number_labels, tau_syn,
+                               params['t_correct'], params['t_wrong'],
+                               device)
+    else:
+        raise NotImplementedError(f"loss of type '{params['type']}' not implemented")
+
+
 def get_default_device():
     # Pick GPU if avialable, else CPU
     if torch.cuda.is_available():

@@ -809,9 +809,9 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
     save_untrained_network(foldername, filename, net)
 
     print("loss function")
-    criterion = utils.LossFunction(network_layout['layer_sizes'][-1],
-                                   sim_params['tau_syn'], training_params['xi'],
-                                   training_params['alpha'], training_params['beta'], device)
+    criterion = utils.GetLoss(training_params, 
+                              network_layout['layer_sizes'][-1],
+                              sim_params['tau_syn'], device)
 
     if training_params['optimizer'] == 'adam':
         optimizer = torch.optim.Adam(net.parameters(), lr=training_params['learning_rate'])
@@ -991,9 +991,9 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
         return net
 
     print("loading optimizer and scheduler")
-    criterion = utils.LossFunction(network_layout['layer_sizes'][-1],
-                                   sim_params['tau_syn'], training_params['xi'],
-                                   training_params['alpha'], training_params['beta'], device)
+    criterion = utils.GetLoss(training_params,
+                              network_layout['layer_sizes'][-1],
+                              sim_params['tau_syn'], device)
     optimizer, scheduler, torch_rand_state, numpy_rand_state = load_optim_state(
         dirname_long, filename, net, training_params)
 
