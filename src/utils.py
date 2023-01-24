@@ -426,24 +426,35 @@ class LossFunction(torch.nn.Module):
 
 
 class LossFunctionMSE(torch.nn.Module):
-    def __init__(self, number_labels, tau_syn, early, late, device):
-        super(LossFunction, self).__init__()
+    def __init__(self, number_labels, tau_syn, correct, wrong, device):
+        super().__init__()
         self.number_labels = number_labels
         self.tau_syn = tau_syn
         self.device = device
 
-        self.early = self.tau_syn * early
-        self.late = self.tau_syn * late
+        self.t_correct = self.tau_syn * correct
+        self.t_wrong = self.tau_syn * wrong
         return
 
     def forward(self, label_times, true_label):
         label_idx = to_device(true_label.clone().type(torch.long).view(-1, 1), self.device)
         true_label_times = label_times.gather(1, label_idx).flatten()
 
-        target = torch.eye(self.number_labels)[true_label] * (self.early - self.late) + self.late
+        target = torch.eye(self.number_labels)[true_label] * (self.t_correct - self.t_wrong) + self.t_wrong
         loss = 1. / 2. * (label_times - target)**2
         loss[true_label_times == np.inf] = 100.
         return loss.mean()
+
+    def select_classes(self, outputs):
+        closest_to_target = torch.abs(outputs - self.t_correct).argmin(1)
+        ctt_reshaped = closest_to_target.view(-1, 1)
+        # count how many firsts had inf or nan as value
+        nan_mask = torch.isnan(torch.gather(outputs, 1, ctt_reshaped)).flatten()
+        inf_mask = torch.isinf(torch.gather(outputs, 1, ctt_reshaped)).flatten()
+        # set firsts to -1 so that they cannot be counted as correct
+        closest_to_target[nan_mask] = -1
+        closest_to_target[inf_mask] = -1
+        return closest_to_target
 
 
 def get_default_device():
