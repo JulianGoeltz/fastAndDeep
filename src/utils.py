@@ -394,7 +394,7 @@ def network_load(path, basename, device):
 
 class LossFunction(torch.nn.Module):
     def __init__(self, number_labels, tau_syn, xi, alpha, beta, device):
-        super(LossFunction, self).__init__()
+        super().__init__()
         self.number_labels = number_labels
         self.tau_syn = tau_syn
         self.xi = xi
@@ -412,6 +412,17 @@ class LossFunction(torch.nn.Module):
         total = loss + regulariser
         total[true_label_times == np.inf] = 100.
         return total.mean()
+
+    def select_classes(self, outputs):
+        firsts = outputs.argmin(1)
+        firsts_reshaped = firsts.view(-1, 1)
+        # count how many firsts had inf or nan as value
+        nan_mask = torch.isnan(torch.gather(outputs, 1, firsts_reshaped)).flatten()
+        inf_mask = torch.isinf(torch.gather(outputs, 1, firsts_reshaped)).flatten()
+        # set firsts to -1 so that they cannot be counted as correct
+        firsts[nan_mask] = -1
+        firsts[inf_mask] = -1
+        return firsts
 
 
 class LossFunctionMSE(torch.nn.Module):
