@@ -314,7 +314,7 @@ setJobDescription("""
 </p>
 <p>
   <h1>Execution stats</h1>
-  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/src/py/jenkinsExecutionStats.png"/>
+  <img width=450 src="lastSuccessfulBuild/artifact/fastAndDeep/src/py/jenkinsExecutionStats.png"/>
 </p>
 <p>
   <h1>Summary of the last few runs</h1>
