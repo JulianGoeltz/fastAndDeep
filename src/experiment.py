@@ -131,6 +131,7 @@ if __name__ == '__main__':
     if mode == 'inference':
         outputs, selected_classes, labels, _, _ = evaluation.run_inference(
             dirname, filename, 'test', dataset_test, untrained=False, reference=False,
+            return_hidden=True,  # to run new inference
             device=device, net=net, wholeset=False)
         correct = torch.eq(torch.tensor(labels), selected_classes.detach().cpu()).sum().numpy()
         acc = correct / len(selected_classes)
