@@ -26,7 +26,7 @@ def recordExitSuccess(int success) {
 		jesh(
 			"jq --arg success '${success}' --arg BUILD_NUMBER '${env.BUILD_NUMBER}' --arg STAGE_NAME '${env.STAGE_NAME}' --arg HX 'W${wafer}F${fpga}' --arg DATE " + '"$(date +%s)" '
 			+
-			'\'. + {($BUILD_NUMBER): {"HX": $HX, "laststep": $STAGE_NAME, "success": $success, "timestamp": $DATE}}\' ' + "${filename_errors} | tee ${filename_errors}.tmp"
+			'\'. + {($BUILD_NUMBER): {"HX": $HX, "laststep": $STAGE_NAME, "success": $success, "timestamp": $DATE}}\' ' + "${filename_errors} > ${filename_errors}.tmp"
 		);
 		jesh("mv ${filename_errors}.tmp ${filename_errors}");
 	}
