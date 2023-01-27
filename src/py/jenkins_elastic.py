@@ -11,10 +11,14 @@ import os.path as osp
 import re
 import sys
 import time
+import torch
 import yaml
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
+sys.path.append('..')
+import training
+import utils
 
 json_filename = '/jenkins/results/p_jg_FastAndDeep/data.json'
 m_train = 'x'
@@ -23,26 +27,28 @@ m_testInference = '3'
 ms_testInference = 5
 max_allowed_error = 8
 
+device = utils.get_default_device()
 
-def get_data(dirname, dataset, datatype):
+
+def get_data(dirname, dataset, datatype, criterion):
     # load stuff
     outputs = np.load(osp.join(dirname, f"{dataset}_{datatype}_spiketimes.npy"))
     labels = np.load(osp.join(dirname, f"{dataset}_{datatype}_labels.npy"))
-    # inputs = np.load(osp.join(dirname, f"{dataset}_{datatype}_inputs.npy"))
-    num_classes = np.max(labels) + 1
-    firsts = np.argmin(outputs, axis=1)
 
-    # set firsts to -1 so that they cannot be counted as correct
-    firsts[np.isnan(outputs[np.eye(num_classes, dtype=bool)[firsts]])] = -1
-    firsts[np.isinf(outputs[np.eye(num_classes, dtype=bool)[firsts]])] = -1
+    # correct class according to defined loss
+    selected_classes = criterion.select_classes(torch.tensor(outputs))
+    correct = torch.eq(torch.tensor(labels), selected_classes.detach().cpu()).sum().numpy()
+    acc = correct / len(selected_classes)
 
-    return np.mean(labels == firsts)
+    return acc
 
 
 def write_new_data():
     path = "../../experiment_results/lastrun/epoch_300"
-    with open(osp.join(path, "config.yaml")) as f:
-        dataset = yaml.safe_load(f)['dataset']
+    dataset, neuron_params, network_layout, training_params = training.load_config(osp.join(path, "config.yaml"))
+    criterion = utils.GetLoss(training_params,
+                              network_layout['layer_sizes'][-1],
+                              neuron_params['tau_syn'], device)
     # find out stats of last run
     pattern = 'the accuracy is ([0-9.]*)'
     inference_accs = []
