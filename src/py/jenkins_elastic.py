@@ -64,8 +64,8 @@ def write_new_data():
         raise IOError("did not find any printed accuracies in the file, see printed contents above")
 
     data = {
-        'accuracy_test': get_data(path, dataset, 'test'),
-        'accuracy_train': get_data(path, dataset, 'train'),
+        'accuracy_test': get_data(path, dataset, 'test', criterion),
+        'accuracy_train': get_data(path, dataset, 'train', criterion),
         'accuracy_test_inference': inference_accs,
     }
 
