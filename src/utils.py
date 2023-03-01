@@ -232,7 +232,7 @@ class EqualtimeFunctionHicannx(EqualtimeFunctionEventbased):
         ctx.save_for_backward(
             input_spikes, input_weights, output_times)
 
-        return output_times
+        return output_times.clone()
 
 
 class EqualtimeLayer(torch.nn.Module):
