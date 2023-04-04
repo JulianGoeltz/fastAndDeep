@@ -6,7 +6,7 @@ neuron_params:
   threshold: 1.0
 network_layout:
   bias_times: [0.9]
-  layer_sizes: [120, 3]
+  layer_sizes: [20, 3]
   n_biases: [1, 1]
   n_inputs: 4
   n_layers: 2
@@ -16,7 +16,7 @@ training_params:
   batch_size: 150
   batch_size_eval: 200
   enforce_cpu: False
-  epoch_number: 300
+  epoch_number: 500
   epoch_snapshots: [100, 200]
   learning_rate: 0.005
   loss:
@@ -27,15 +27,18 @@ training_params:
   max_dw_norm: 0.2
   max_num_missing_spikes: [0.3, 0.0]
   momentum: 0
-  numpy_seed: 12345
+    # numpy_seed: 12132102
+  numpy_seed: 987485
   optimizer: adam
   print_step_percent: 5.0
   resolution: 0.01
   sim_time: 4.0
-  torch_seed: 2000
+    # torch_seed: 49874543
+  torch_seed: 8657453
   training_noise: false
   use_forward_integrator: false
   use_hicannx: false
   weight_bumping_exp: true
   weight_bumping_targeted: true
   weight_bumping_value: 0.0005
+  xi: 0.2

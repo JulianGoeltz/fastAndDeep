@@ -13,8 +13,8 @@ import training
 import utils
 
 
-def run_inference(dirname, filename, dataset, untrained, reference, device=None,
-                  return_all=False, wholeset=False, net=None):
+def run_inference(dirname, filename, datatype, dataset, untrained, reference, device=None,
+                  return_inputs=False, return_hidden=False, wholeset=False, net=None):
     if device is None:
         device = torch.device('cpu')
     if untrained:
@@ -22,6 +22,27 @@ def run_inference(dirname, filename, dataset, untrained, reference, device=None,
     else:
         basename = filename
     _, neuron_params, network_layout, training_params = training.load_config(osp.join(dirname, "config.yaml"))
+    criterion = utils.GetLoss(training_params,
+                              network_layout['layer_sizes'][-1],
+                              neuron_params['tau_syn'], device)
+
+    saved_spikes_exist = os.path.exists(dirname + '/' + filename + '_{}_spiketimes.npy'.format(datatype))
+    saved_inputs_exist = os.path.exists(dirname + '/' + filename + '_{}_inputs.npy'.format(datatype))
+
+    if not return_hidden:
+        if saved_spikes_exist and (not return_inputs or saved_inputs_exist):
+            print('### Using pre-saved spiketimes for faster plot ###')
+            outputs = torch.tensor(training.load_data(dirname, filename, '_{}_spiketimes.npy'.format(datatype)))
+            labels = torch.tensor(training.load_data(dirname, filename, '_{}_labels.npy'.format(datatype)))
+            selected_classes = criterion.select_classes(outputs)
+            if return_inputs:
+                inputs = torch.tensor(training.load_data(dirname, filename, '_{}_inputs.npy'.format(datatype)))
+            else:
+                inputs = None
+            return outputs, selected_classes, labels, None, inputs
+
+    print('### Running in inference mode ###')
+
     # print(training_params)
     if not reference:
         if training_params['use_hicannx'] and \
@@ -83,14 +104,12 @@ def run_inference(dirname, filename, dataset, untrained, reference, device=None,
                 print(f"\rinference ongoing, at {i} of {len(loader)} batches", end='')
         outputs = torch.stack([item for sublist in all_outputs for item in sublist])
         labels = np.array([item.item() for sublist in all_labels for item in sublist])
-        if return_all:
-            inputs = torch.stack([item for sublist in all_inputs for item in sublist])
-            hiddens = torch.stack([item for sublist in all_hiddens for item in sublist[0]])
+        inputs = torch.stack([item for sublist in all_inputs for item in sublist])
+        hiddens = torch.stack([item for sublist in all_hiddens for item in sublist[0]])
+        selected_classes = criterion.select_classes(outputs)
+
     print()
-    if return_all:
-        return outputs, labels, hiddens, inputs
-    else:
-        return outputs, labels
+    return outputs, selected_classes, labels, hiddens, inputs
 
 
 def plot_yyshape(ax, fillcolors=None):
@@ -139,45 +158,21 @@ def confusion_matrix(datatype, dataset, dirname='tmp', filename='', untrained=Fa
                      device=None, net=None):
     if device is None:
         device = torch.device('cpu')
-    saved_spikes_exist = os.path.exists(dirname + '/' + filename + '_{}_spiketimes.npy'.format(datatype))
-    if untrained or not saved_spikes_exist:
-        print('### Running in inference mode for confusion_matrix plot ###')
-        outputs, labels = run_inference(dirname, filename, dataset, untrained, reference, device, net=net)
-        if outputs is None and labels is None:
-            return
-    else:
-        print('### Using pre-saved spiketimes for faster confusion_matrix plot ###')
-        outputs = torch.tensor(training.load_data(dirname, filename, '_{}_spiketimes.npy'.format(datatype)))
-        labels = torch.tensor(training.load_data(dirname, filename, '_{}_labels.npy'.format(datatype)))
+    outputs, selected_classes, labels, _, _  = run_inference(dirname, filename, datatype, dataset,
+                                                             untrained, reference, device, net=net)
+    if outputs is None and labels is None:
+        return
     # this can not run inference on hicannx currently
     num_labels = len(np.unique(labels))
     if reference:
-        firsts = outputs.argmax(1)
-    else:
-        firsts = outputs.argmin(1)
-    firsts_reshaped = firsts.view(-1, 1)
-    nan_mask = torch.isnan(torch.gather(outputs, 1, firsts_reshaped)).flatten()
-    inf_mask = torch.isinf(torch.gather(outputs, 1, firsts_reshaped)).flatten()
-    # set firsts to -1 so that they cannot be counted as correct
-    firsts[nan_mask] = -1
-    firsts[inf_mask] = -1
-    firsts_per_pattern = [np.zeros(num_labels) for i in range(num_labels)]
-    n_correct = 0
-    for pattern in range(len(outputs)):
-        true_label = labels[pattern]
-        classified_label = firsts[pattern]
-        # print(outputs[pattern][firsts[pattern]])
-        if classified_label == true_label and \
-           not np.isnan(outputs[pattern][firsts[pattern]].cpu().detach().numpy()) and \
-           not np.isinf(outputs[pattern][firsts[pattern]].cpu().detach().numpy()):
-            n_correct += 1
-        firsts_per_pattern[true_label][classified_label] += 1
+        selected_classes = outputs.argmax(1)
+    correct_per_pattern = np.zeros((num_labels, num_labels))
     for label in range(num_labels):
-        num_examples = np.sum(firsts_per_pattern[label])
-        firsts_per_pattern[label] = firsts_per_pattern[label] / num_examples
-    print(f"n_correct {n_correct}, examples {len(outputs)}, accuracy {n_correct / len(outputs)}")
-    accuracy = n_correct / len(outputs)
-    confusion_matrix = np.array(firsts_per_pattern)
+        idcs = (labels == label)
+        classifications = selected_classes[idcs].reshape((-1, 1)) == torch.arange(num_labels).reshape((1, -1))
+        correct_per_pattern[label] = classifications.sum(axis=0) / idcs.sum()
+    accuracy = torch.eq(selected_classes, labels).detach().numpy().astype(float).mean()
+    print(f"accuracy {accuracy}")
     if untrained:
         path = dirname + '/' + filename + '_confusion_matrix_{}_UNTRAINED.png'.format(datatype)
     else:
@@ -192,11 +187,11 @@ def confusion_matrix(datatype, dataset, dirname='tmp', filename='', untrained=Fa
         plt.title('{0} dataset UNTRAINED (acc: {1})'.format(datatype, np.around(accuracy, 3)))
     else:
         plt.title('{0} dataset (acc: {1})'.format(datatype, np.around(accuracy, 3)))
-    color_map = ax.imshow(confusion_matrix)
+    color_map = ax.imshow(correct_per_pattern)
     color_map.set_cmap("Blues_r")
     plt.ylabel('True class')
     plt.xlabel('Predicted class')
-    for (j, i), label in np.ndenumerate(confusion_matrix):
+    for (j, i), label in np.ndenumerate(correct_per_pattern):
         ax.text(i, j, np.around(label, decimals=2), ha='center', va='center')
     fig.colorbar(color_map)
     plt.savefig(path)
@@ -211,16 +206,10 @@ def sorted_outputs(datatype, dataset, dirname='tmp', filename='', untrained=Fals
                    device=None, net=None):
     if device is None:
         device = torch.device('cpu')
-    saved_spikes_exist = os.path.exists(dirname + '/' + filename + '_{}_spiketimes.npy'.format(datatype))
-    if untrained or not saved_spikes_exist:
-        print('### Running in inference mode for sorted_outputs plot ###')
-        outputs, labels = run_inference(dirname, filename, dataset, untrained, reference, device, net=net)
-        if outputs is None and labels is None:
-            return
-    else:
-        print('### Using pre-saved spiketimes for faster sorted_outputs plot ###')
-        outputs = torch.tensor(training.load_data(dirname, filename, '_{}_spiketimes.npy'.format(datatype)))
-        labels = torch.tensor(training.load_data(dirname, filename, '_{}_labels.npy'.format(datatype)))
+    outputs, selected_classes, labels, _, _ = run_inference(dirname, filename, datatype, dataset,
+                                                            untrained, reference, device, net=net)
+    if outputs is None and labels is None:
+        return
     num_labels = len(np.unique(labels))
     # sort for earliest spike
     outputs_sorted = [[] for i in range(num_labels)]
@@ -349,7 +338,10 @@ def weight_histograms(dirname='tmp', filename='', show=False, device=None):
     elif osp.isfile(dirname + '/../' + filename + '_untrained_network.pt'):
         net_untrained = utils.network_load(dirname + '/../', filename + '_untrained', device)
     else:
-        raise IOError(f"No untrained network '{filename}_untrained_network.pt' found in {dirname} or {dirname}/..")
+        print("*" * 30)
+        print(f"No untrained network '{filename}_untrained_network.pt' found in {dirname} or {dirname}/..")
+        print("*" * 30)
+        return
     # this can not run inference on hicannx currently
     num_layers = len(net.layers)
     fig, axes = plt.subplots(num_layers, 1, sharex=True, figsize=(10, 10))
@@ -406,34 +398,17 @@ def yin_yang_classification(datatype, dataset, dirname='tmp', filename='', refer
     if device is None:
         device = torch.device('cpu')
 
-    saved_spikes_exist = os.path.exists(dirname + '/' + filename + '_{}_spiketimes.npy'.format(datatype))
-    saved_spikes_exist = saved_spikes_exist and os.path.exists(
-        dirname + '/' + filename + '_{}_inputs.npy'.format(datatype))
-    if untrained or not saved_spikes_exist:
-        print('### Running in inference mode for yin_yang plot ###')
-        outputs, labels, _, inputs = run_inference(dirname, filename, dataset, untrained, reference,
-                                                   device, return_all=True, net=net)
-    else:
-        print('### Using pre-saved spiketimes for faster yin_yang plot ###')
-        outputs = torch.tensor(training.load_data(dirname, filename, '_{}_spiketimes.npy'.format(datatype)))
-        labels = torch.tensor(training.load_data(dirname, filename, '_{}_labels.npy'.format(datatype)))
-        inputs = torch.tensor(training.load_data(dirname, filename, '_{}_inputs.npy'.format(datatype)))
-
+    outputs, selected_classes, labels, _, inputs = run_inference(
+        dirname, filename, datatype, dataset, untrained, reference,
+        device, return_inputs=True, net=net)
     if outputs is None and labels is None:
         return
     if reference:
-        firsts = outputs.argmax(1)
-    else:
-        firsts = outputs.argmin(1)
-    firsts_reshaped = firsts.view(-1, 1)
-    nan_mask = torch.isnan(torch.gather(outputs, 1, firsts_reshaped)).flatten()
-    inf_mask = torch.isinf(torch.gather(outputs, 1, firsts_reshaped)).flatten()
-    # set firsts to -1 so that they cannot be counted as correct
-    firsts[nan_mask] = -1
-    firsts[inf_mask] = -1
-    colors = [color_from_class(first) for first in firsts]
+        selected_classes = outputs.argmax(1)
+
+    colors = [color_from_class(sc) for sc in selected_classes]
     reduced_inputs = np.array([[item[0], item[1]] for item in inputs])
-    wrongs = torch.logical_not(torch.eq(torch.tensor(labels), firsts.detach().cpu())).numpy()
+    wrongs = torch.logical_not(torch.eq(torch.tensor(labels), selected_classes.detach().cpu())).numpy()
     acc = (len(colors) - wrongs.sum()) / len(colors)
     print(f"accuracy {acc}")
     plt.figure(figsize=(10, 10))
@@ -458,19 +433,9 @@ def yin_yang_spiketimes(datatype, dataset, dirname='tmp', filename='', reference
     if device is None:
         device = torch.device('cpu')
 
-    saved_spikes_exist = os.path.exists(dirname + '/' + filename + '_{}_spiketimes.npy'.format(datatype))
-    saved_spikes_exist = saved_spikes_exist and os.path.exists(
-        dirname + '/' + filename + '_{}_inputs.npy'.format(datatype))
-    if untrained or not saved_spikes_exist:
-        print('### Running in inference mode for yin_yang spiketime plot ###')
-        outputs, labels, _, inputs = run_inference(dirname, filename, dataset, untrained, reference,
-                                                   device, return_all=True, net=net)
-    else:
-        print('### Using pre-saved spiketimes for faster yin_yang spiketime plot ###')
-        outputs = torch.tensor(training.load_data(dirname, filename, '_{}_spiketimes.npy'.format(datatype)))
-        labels = torch.tensor(training.load_data(dirname, filename, '_{}_labels.npy'.format(datatype)))
-        inputs = torch.tensor(training.load_data(dirname, filename, '_{}_inputs.npy'.format(datatype)))
-
+    outputs, selected_classes, labels, _, inputs = run_inference(
+        dirname, filename, datatype, dataset,
+        untrained, reference, device, return_inputs=True, net=net)
     if outputs is None and labels is None:
         return
     outputs = outputs.detach().cpu().numpy()
@@ -510,19 +475,9 @@ def yin_yang_spiketime_diffs(datatype, dataset, dirname='tmp', filename='', refe
     if device is None:
         device = torch.device('cpu')
 
-    saved_spikes_exist = os.path.exists(dirname + '/' + filename + '_{}_spiketimes.npy'.format(datatype))
-    saved_spikes_exist = saved_spikes_exist and os.path.exists(
-        dirname + '/' + filename + '_{}_inputs.npy'.format(datatype))
-    if untrained or not saved_spikes_exist:
-        print('### Running in inference mode for yin_yang spiketime diff plot ###')
-        outputs, labels, _, inputs = run_inference(dirname, filename, dataset, untrained, reference,
-                                                   device, return_all=True, net=net)
-    else:
-        print('### Using pre-saved spiketimes for faster yin_yang spiketime diff plot ###')
-        outputs = torch.tensor(training.load_data(dirname, filename, '_{}_spiketimes.npy'.format(datatype)))
-        labels = torch.tensor(training.load_data(dirname, filename, '_{}_labels.npy'.format(datatype)))
-        inputs = torch.tensor(training.load_data(dirname, filename, '_{}_inputs.npy'.format(datatype)))
-
+    outputs, selected_classes, labels, _, inputs = run_inference(
+        dirname, filename, datatype, dataset, untrained, reference,
+        device, return_inputs=True, net=net)
     if outputs is None and labels is None:
         return
     outputs = outputs.detach().cpu().numpy()
@@ -582,8 +537,9 @@ def yin_yang_hiddentimes(datatype, dataset, dirname='tmp', filename='', referenc
     if device is None:
         device = torch.device('cpu')
     print('### Running in inference mode for yin_yang hidden times plot ###')
-    outputs, labels, hiddens, inputs = run_inference(dirname, filename, dataset, untrained, reference, device,
-                                                     return_all=True, net=net)
+    outputs, selected_classes, labels, hiddens, inputs = run_inference(
+        dirname, filename, datatype, dataset, untrained, reference,
+        device, return_hidden=True, return_inputs=True, net=net)
     if outputs is None and labels is None:
         return
     hiddens = hiddens.detach().cpu().numpy()
@@ -596,6 +552,8 @@ def yin_yang_hiddentimes(datatype, dataset, dirname='tmp', filename='', referenc
     for i in range(gridsize):
         for j in range(gridsize):
             k = i * gridsize + j
+            if k >= hiddens.shape[1] or np.all(np.isinf(hiddens[:, k])):
+                continue
             sc = axes[i, j].scatter(reduced_inputs[:, 0], reduced_inputs[:, 1], c=hiddens[:, k], cmap=cm, marker='o',
                                     s=100, edgecolor='black', alpha=0.7, norm=norm)
             axes[i, j].set_xlim(0, 2.1)
@@ -726,8 +684,9 @@ def spiketime_hist(datatype, dataset, dirname='tmp', filename='', show=False, re
         device = torch.device('cpu')
 
     print("### running in inference mode for spiketime hist ###")
-    outputs, labels, hiddens, _ = run_inference(dirname, filename, dataset, False, reference,
-                                                device, return_all=True, net=net)
+    outputs, selected_classes, labels, hiddens, _ = run_inference(
+        dirname, filename, datatype, dataset, False,
+        reference, device, return_hidden=True, net=net)
     if outputs is None and labels is None:
         return
     # sort into "should be first" and "should be late"
@@ -754,8 +713,9 @@ def spiketime_hist(datatype, dataset, dirname='tmp', filename='', show=False, re
     no_spike_hidden = torch.sum(torch.isinf(hiddens))
     # get untrained data
     print("### running in inference mode for spiketime hist untrained ###")
-    outputs_u, labels_u, hiddens_u, _ = run_inference(dirname, filename, dataset,
-                                                      True, reference, device, return_all=True)
+    outputs_u, selected_classes, labels_u, hiddens_u, _ = run_inference(
+        dirname, filename, datatype, dataset, True,
+        reference, device, return_hidden=True)
     should_early_u = []
     should_late_u = []
     no_spike_early_u = 0

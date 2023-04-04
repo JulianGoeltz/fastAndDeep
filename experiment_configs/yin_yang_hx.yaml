@@ -13,14 +13,16 @@ network_layout:
   weight_means: [0.100, 0.075]
   weight_stdevs: [0.12, 0.15]
 training_params:
-  alpha: 0.005
   batch_size: 40
   batch_size_eval: 200
-  beta: 1.
   enforce_cpu: False
   epoch_number: 300
   epoch_snapshots: [1, 5, 10, 15, 50, 100, 150, 200, 300]
   learning_rate: 0.002
+  loss:
+    type: MSE
+    t_correct: 1.9
+    t_wrong: 1.6
   lr_scheduler: {gamma: 0.95, step_size: 20, type: StepLR}
   max_dw_norm: 0.2
   max_num_missing_spikes: [0.3, 0.05]
@@ -37,4 +39,3 @@ training_params:
   weight_bumping_exp: true
   weight_bumping_targeted: true
   weight_bumping_value: 0.0005
-  xi: 0.2

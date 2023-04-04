@@ -129,17 +129,12 @@ if __name__ == '__main__':
         raise IOError("argument must be train, eval, continue or inference")
 
     if mode == 'inference':
-        outputs, labels = evaluation.run_inference(dirname, filename, dataset_test, False, False, device, net=net,
-                                                   wholeset=False)
-        firsts = outputs.argmin(1)
-        firsts_reshaped = firsts.view(-1, 1)
-        nan_mask = torch.isnan(torch.gather(outputs, 1, firsts_reshaped)).flatten()
-        inf_mask = torch.isinf(torch.gather(outputs, 1, firsts_reshaped)).flatten()
-        # set -1 where nan or inf appear to not count those accidentally
-        firsts[nan_mask] = -1
-        firsts[inf_mask] = -1
-        correct = torch.eq(torch.tensor(labels), firsts.detach().cpu()).sum().numpy()
-        acc = correct / len(firsts)
+        outputs, selected_classes, labels, _, _ = evaluation.run_inference(
+            dirname, filename, 'test', dataset_test, untrained=False, reference=False,
+            return_hidden=True,  # to run new inference
+            device=device, net=net, wholeset=False)
+        correct = torch.eq(torch.tensor(labels), selected_classes.detach().cpu()).sum().numpy()
+        acc = correct / len(selected_classes)
         print(f"After inference, the accuracy is {acc * 100:.2f}%.")
     elif mode == 'eval' or (net.use_hicannx and mode != 'fast_eval'):
         # generic plots:
@@ -148,6 +143,8 @@ if __name__ == '__main__':
                                     device=device, net=net)
         evaluation.sorted_outputs('test', dataset_test, dirname=dirname, filename=filename, device=device, net=net)
         evaluation.sorted_outputs('train', dataset_train, dirname=dirname, filename=filename, device=device, net=net)
+
+        evaluation.summary_plot(dataset, dirname=dirname, filename=filename, net=net)
 
         # special plots
         if dataset == "yin_yang":
@@ -172,7 +169,6 @@ if __name__ == '__main__':
         # evaluation.compare_voltages(dataset=dataset_train, dirname=dirname, filename=filename, device=device)
 
         evaluation.loss_accuracy(dataset, dirname=dirname, filename=filename)
-        evaluation.summary_plot(dataset, dirname=dirname, filename=filename, net=net)
         if untrained:
             evaluation.confusion_matrix('test', dataset_test, dirname=dirname, filename=filename,
                                         untrained=True, device=device, net=net)

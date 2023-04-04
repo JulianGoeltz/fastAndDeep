@@ -359,15 +359,8 @@ def validation_step(net, criterion, loader, device, return_input=False):
             inputs, labels = data
             input_times = utils.to_device(inputs.clone().type(torch.float64), device)
             outputs, _ = net(input_times)
-            firsts = outputs.argmin(1)
-            firsts_reshaped = firsts.view(-1, 1)
-            # count how many firsts had inf or nan as value
-            nan_mask = torch.isnan(torch.gather(outputs, 1, firsts_reshaped)).flatten()
-            inf_mask = torch.isinf(torch.gather(outputs, 1, firsts_reshaped)).flatten()
-            # set firsts to -1 so that they cannot be counted as correct
-            firsts[nan_mask] = -1
-            firsts[inf_mask] = -1
-            num_correct += len(outputs[firsts == labels])
+            selected_classes = criterion.select_classes(outputs)
+            num_correct += len(outputs[selected_classes == labels])
             num_shown += len(labels)
             loss = criterion(outputs, labels) * len(labels)
             losses.append(loss)
@@ -546,11 +539,11 @@ def save_result_spikes(dirname, filename, train_times, train_labels, train_input
     test_times = np.array([item.detach().cpu().numpy() for item in test_times])
     np.save(dirname + filename + '_train_spiketimes.npy', train_times)
     np.save(dirname + filename + '_train_labels.npy', train_labels)
-    if not (train_inputs is None):
+    if train_inputs is not None:
         np.save(dirname + filename + '_train_inputs.npy', train_inputs)
     np.save(dirname + filename + '_test_spiketimes.npy', test_times)
     np.save(dirname + filename + '_test_labels.npy', test_labels)
-    if not (test_inputs is None):
+    if test_inputs is not None:
         np.save(dirname + filename + '_test_inputs.npy', test_inputs)
     return
 
@@ -663,7 +656,7 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
             optimizer.zero_grad()
             # forward pass
             label_times, hidden_times = net(input_times)
-            firsts = label_times.argmin(1)
+            selected_classes = criterion.select_classes(label_times)
             # Either do the backward pass or bump weights because spikes are missing
             last_weights_bumped, bump_val = check_bump_weights(net, hidden_times, label_times,
                                                                training_params, epoch, j, bump_val, last_weights_bumped)
@@ -677,16 +670,9 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
                 # on hardware we need extra step to write weights
                 train_loss.append(loss.item())
             net.write_weights_to_hicannx()
-            firsts_reshaped = firsts.view(-1, 1)
-            # count how many firsts had inf or nan as value
-            nan_mask = torch.isnan(torch.gather(label_times, 1, firsts_reshaped)).flatten()
-            inf_mask = torch.isinf(torch.gather(label_times, 1, firsts_reshaped)).flatten()
-            # set firsts to -1 so that they cannot be counted as correct
-            firsts[nan_mask] = -1
-            firsts[inf_mask] = -1
-            num_correct += len(label_times[firsts == labels])
+            num_correct += len(label_times[selected_classes == labels])
             num_shown += len(labels)
-            tmp_training_progress.append(len(label_times[firsts == labels]) / len(labels))
+            tmp_training_progress.append(len(label_times[selected_classes == labels]) / len(labels))
 
             if live_plot and j % 100 == 0:
                 fig, ax = plt.subplots(1, 1)
@@ -823,9 +809,9 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
     save_untrained_network(foldername, filename, net)
 
     print("loss function")
-    criterion = utils.LossFunction(network_layout['layer_sizes'][-1],
-                                   sim_params['tau_syn'], training_params['xi'],
-                                   training_params['alpha'], training_params['beta'], device)
+    criterion = utils.GetLoss(training_params, 
+                              network_layout['layer_sizes'][-1],
+                              sim_params['tau_syn'], device)
 
     if training_params['optimizer'] == 'adam':
         optimizer = torch.optim.Adam(net.parameters(), lr=training_params['learning_rate'])
@@ -1005,9 +991,9 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
         return net
 
     print("loading optimizer and scheduler")
-    criterion = utils.LossFunction(network_layout['layer_sizes'][-1],
-                                   sim_params['tau_syn'], training_params['xi'],
-                                   training_params['alpha'], training_params['beta'], device)
+    criterion = utils.GetLoss(training_params,
+                              network_layout['layer_sizes'][-1],
+                              sim_params['tau_syn'], device)
     optimizer, scheduler, torch_rand_state, numpy_rand_state = load_optim_state(
         dirname_long, filename, net, training_params)
 
