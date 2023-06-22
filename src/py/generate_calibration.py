@@ -31,15 +31,18 @@ targets_in_weird_units["tau_syn"] *= pq.s
 targets_in_weird_units["refractory_time"] *= pq.s
 
 with hxcomm.ManagedConnection() as connection:
-    init = stadls.ExperimentInit()
-
-    builder, _ = init.generate()
-    stadls.run(connection, builder.done())
+    stateful_connection = calix.common.base.StatefulConnection(connection)
 
     # calibrate CADCs
-    cadc_result = calix.common.cadc.calibrate(connection)
+    cadc_result = calix.common.cadc.calibrate(stateful_connection)
+
 
     # calibrate neurons
-    neuron_result = calix.spiking.neuron.calibrate(connection, **targets_in_weird_units)
+    neuron_target = calix.spiking.neuron.NeuronCalibTarget(**targets_in_weird_units)
+    target = calix.spiking.SpikingCalibTarget(neuron_target=neuron_target)
+
+    neuron_result = calix.spiking.neuron.calibrate(
+        stateful_connection,
+        target=neuron_target)
 
     np.savez(args.output, cadc=cadc_result, neuron=neuron_result, targets=targets)
