@@ -244,7 +244,7 @@ class FandDBackend(strobe.backend.StrobeBackend):
         # sync time
         builder.write(halco.SystimeSyncOnFPGA(), haldls.SystimeSync(True))
         builder.write(halco.TimerOnDLS(), haldls.Timer())
-        builder.block_until(halco.TimerOnDLS(), 100)
+        builder.block_until(halco.TimerOnDLS(), haldls.Timer.Value(100))
 
         if record_timings:
             time_ticket_start = builder.read(halco.EventRecordingConfigOnFPGA())
@@ -298,7 +298,7 @@ class FandDBackend(strobe.backend.StrobeBackend):
 
         builder.block_until(
             halco.TimerOnDLS(),
-            int(duration * 1e6 * fisch.fpga_clock_cycles_per_us))
+            haldls.Timer.Value(int(duration * 1e6 * fisch.fpga_clock_cycles_per_us)))
 
         if record_madc:
             # stop MADC
@@ -322,7 +322,7 @@ class FandDBackend(strobe.backend.StrobeBackend):
         builder.copy_back(disable_recurrency_builder)
 
         builder.write(halco.TimerOnDLS(), haldls.Timer())
-        builder.block_until(halco.TimerOnDLS(), 10000)
+        builder.block_until(halco.TimerOnDLS(), haldls.Timer.Value(10000))
 
         if record_timings:
             # print(f" builder has size {builder.size_to_fpga()}")
