@@ -169,9 +169,13 @@ def confusion_matrix(datatype, dataset, dirname='tmp', filename='', untrained=Fa
     correct_per_pattern = np.zeros((num_labels, num_labels))
     for label in range(num_labels):
         idcs = (labels == label)
-        classifications = selected_classes[idcs].reshape((-1, 1)) == torch.arange(num_labels).reshape((1, -1))
-        correct_per_pattern[label] = classifications.sum(axis=0) / idcs.sum()
-    accuracy = torch.eq(selected_classes, labels).detach().numpy().astype(float).mean()
+        classifications = selected_classes[idcs].reshape((-1, 1)) == \
+            torch.arange(num_labels).reshape((1, -1)).to(device)
+        correct_per_pattern[label] = classifications.sum(axis=0).cpu() / idcs.sum()
+    accuracy = torch.eq(
+        selected_classes,
+        torch.Tensor(labels).to(device),
+    ).cpu().numpy().astype(float).mean()
     print(f"accuracy {accuracy}")
     if untrained:
         path = dirname + '/' + filename + '_confusion_matrix_{}_UNTRAINED.png'.format(datatype)
