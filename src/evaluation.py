@@ -166,13 +166,14 @@ def confusion_matrix(datatype, dataset, dirname='tmp', filename='', untrained=Fa
     num_labels = len(np.unique(labels))
     if reference:
         selected_classes = outputs.argmax(1)
+    selected_classes = selected_classes.to(device)
     correct_per_pattern = np.zeros((num_labels, num_labels))
     for label in range(num_labels):
         idcs = (labels == label)
         classifications = torch.eq(selected_classes[idcs].reshape((-1, 1)),
                                    torch.arange(num_labels).reshape((1, -1)).to(device))
         correct_per_pattern[label] = classifications.sum(axis=0).cpu() / idcs.sum()
-    accuracy = torch.eq(selected_classes, torch.Tensor(labels).to(device))
+    accuracy = torch.eq(selected_classes, torch.tensor(labels).to(device))
     accuracy = accuracy.cpu().numpy().astype(float).mean()
     print(f"accuracy {accuracy}")
     if untrained:
