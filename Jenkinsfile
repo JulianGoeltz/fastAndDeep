@@ -79,7 +79,7 @@ stage("waf setup") {
 	inSingularity(app: "visionary-dls") {
 		wafSetup(
 			projects: ["model-hx-strobe"],
-			setupOptions: "--clone-depth=1",
+			setupOptions: "--clone-depth=1 --gerrit-changes=21015",
 			// --gerrit-changes=16792
 			noExtraStage: true
 		)
@@ -166,7 +166,7 @@ stage("create calib") {
 stage("patch strobe backend") {
 	runOnSlave(label: "frontend") {
 		dir("fastAndDeep/src") {
-			jesh("patch ../../lib/strobe/backend.py -i py/libStrobeBackend.patch")
+			jesh("echo 'no patch necessary anymore'")
 		}
 	}
 }
