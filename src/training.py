@@ -479,6 +479,8 @@ def save_config(dirname, filename, neuron_params, network_layout, training_param
             f.write(subprocess.check_output(["git", "rev-parse", "HEAD"]).decode())
         except subprocess.CalledProcessError:
             print("Not a git repository, can't save git sha")
+        except FileNotFoundError:
+            print("git probably not installed, install it")
     return
 
 
