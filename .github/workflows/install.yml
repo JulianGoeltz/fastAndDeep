@@ -1,0 +1,48 @@
+name: Install software and test runs
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 0 1 * *"
+
+jobs:
+  installAndTest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: update apt-get
+        run: apt-get update
+      - name: install build-essential, python3-dev, python3-full, python3-venv
+        run: |
+          apt-get install -y build-essential
+          apt-get install -y python3-dev
+          apt-get install -y python3-full
+          apt-get install -y python3-venv
+      - name: create venv
+        run: python3 -m venv venv
+      - name: update pip in venv
+        run: |
+          . venv/bin/activate
+          python3 -m pip install --upgrade pip
+      - name: install requirements into venv
+        run: |
+          . venv/bin/activate
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: adapt experiment for short runtime
+        run: |
+          sed -i 's/epoch_number: 300/epoch_number: 5/' experiment_configs/yin_yang.yaml
+          sed -i 's/epoch_snapshots: \[[^]]*\]/epoch_snapshots: \[1 \]/' experiment_configs/yin_yang.yaml
+      - name: run test training
+        run: |
+          . venv/bin/activate
+          cd src
+          python experiment.py train ../experiment_configs/yin_yang.yaml
+      - name: run test inference
+        run: |
+          . venv/bin/activate
+          cd src
+          python experiment.py inference ../experiment_pretrained/yinyang_et_300epochs/ | tee tmp.log
+          grep 'After inference, the accuracy is 96.00%.' tmp.log
