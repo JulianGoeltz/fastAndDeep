@@ -59,6 +59,9 @@ class FandDBackend(strobe.backend.StrobeBackend):
 
     def configure(self, reduce_power=False, initialize=True):
         # call configure of base class
+        if reduce_power:
+            print("**********************number of active links is currently not reduced*****")
+            # in the base class adapt enable_links
         super().configure(reduce_power=reduce_power, initialize=initialize)
 
         # configure MADC

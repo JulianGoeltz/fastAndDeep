@@ -22,7 +22,7 @@ targets = {
         "i_synin_gm": 700,
         "membrane_capacitance": 63,
         "synapse_dac_bias": 800,
-        "refractory_time": 2e-6
+        "refractory_time": 16e-6
         }
 
 targets_in_weird_units = targets.copy()

@@ -166,7 +166,7 @@ stage("create calib") {
 stage("patch strobe backend") {
 	runOnSlave(label: "frontend") {
 		dir("fastAndDeep/src") {
-			jesh("patch ../../lib/strobe/backend.py -i py/libStrobeBackend.patch")
+			jesh("echo 'no patch necessary anymore'")
 		}
 	}
 }
