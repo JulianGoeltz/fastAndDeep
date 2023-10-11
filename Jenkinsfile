@@ -79,7 +79,7 @@ stage("waf setup") {
 	inSingularity(app: "visionary-dls") {
 		wafSetup(
 			projects: ["model-hx-strobe"],
-			setupOptions: "--clone-depth=1 --gerrit-changes=21015",
+			setupOptions: "--clone-depth=1",
 			// --gerrit-changes=16792
 			noExtraStage: true
 		)
