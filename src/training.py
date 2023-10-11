@@ -61,9 +61,7 @@ class Net(torch.nn.Module):
         self.use_hicannx = sim_params.get('use_hicannx', False)
 
         if self.use_hicannx:
-            with open('py/hx_settings.yaml') as f:
-                self.hx_settings = yaml.load(f, Loader=yaml.SafeLoader)[
-                    os.environ.get('SLURM_HARDWARE_LICENSES')]
+            self.hx_settings = get_hx_settings()
 
             self.hx_settings['retries'] = 5
             self.hx_settings['single_simtime'] = 30.
@@ -333,6 +331,25 @@ class Net(torch.nn.Module):
 
     def round_weights(self, weights, precision):
         return (weights / precision).round() * precision
+
+
+def get_hx_settings() -> dict:
+    with open('py/hx_settings.yaml') as f:
+        hx_settings = yaml.load(f, Loader=yaml.SafeLoader)
+    hx_setup_no = os.environ.get('SLURM_HARDWARE_LICENSES')
+    if hx_setup_no in hx_settings:
+        return hx_settings[hx_setup_no]
+    elif 'DEFAULT' in hx_settings:
+        # adapt calibration path to default one
+        hx_settings['DEFAULT']['calibration'] = f"calibrations/{hx_setup_no}.npz"
+        if not osp.isfile(hx_settings['DEFAULT']['calibration']):
+            raise FileNotFoundError(
+                f"Calibration for the current setup {hx_setup_no} has to be created first "
+                f"(probably with 'python py/generate_calibration.py --output calibrations/{hx_setup_no}.npz')")
+        return hx_settings['DEFAULT']
+    else:
+        raise OSError(f"DEFAULT not defined and setup no {hx_setup_no} is not described"
+                      f"in hx settings file, only {hx_settings.keys()}")
 
 
 def load_data(dirname, filename, dataname):

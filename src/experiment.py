@@ -65,14 +65,10 @@ if __name__ == '__main__':
     if mode == 'train':
         if training_params['use_hicannx']:
             assert os.environ.get('SLURM_HARDWARE_LICENSES') is not None
-            with open('py/hx_settings.yaml') as f:
-                hx_settings = yaml.load(f, Loader=yaml.SafeLoader)
-            hx_setup_no = os.environ.get('SLURM_HARDWARE_LICENSES')
-            if hx_setup_no not in hx_settings:
-                raise OSError(f"Setup no {hx_setup_no} is not described in hx settings file, only {hx_settings.keys()}")
+            hx_settings = training.get_hx_settings()
             print("Using hardware settings:")
-            pprint(hx_settings[hx_setup_no])
-            neuron_params = hx_settings[hx_setup_no]['neuron_params']
+            pprint(hx_settings)
+            neuron_params = hx_settings['neuron_params']
 
             # modify network layout with multiplication of input for YY on hw
             if dataset == "yin_yang":
