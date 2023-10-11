@@ -151,7 +151,7 @@ stage("create calib") {
 					jesh("module list")
 					jesh("module show localdir")
 					jeshWithLoggedStds(
-						"cd fastAndDeep/src; python py/generate_calibration.py --output calibrations/tmp_jenkins.npz",
+						"cd fastAndDeep/src; python py/generate_calibration.py --output calibrations/W${wafer}F${fpga}.npz",
 						"tmp_stdout.log",
 						"tmp_stderr.log"
 					)
@@ -174,7 +174,7 @@ stage("patch strobe backend") {
 stage("adapt hx_settings.yaml to current wafer/FPGA") {
 	runOnSlave(label: "frontend") {
 		dir("fastAndDeep/src/py") {
-			jesh("sed -i 's/temp_for_jenkins/W${wafer}F${fpga}/' hx_settings.yaml")
+			jesh("echo 'no replacement necessary anymore'")
 		}
 	}
 }

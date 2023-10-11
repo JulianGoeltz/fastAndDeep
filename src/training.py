@@ -59,11 +59,10 @@ class Net(torch.nn.Module):
         self.rounding = self.rounding_precision not in (None, False)
         self.sim_params = sim_params
         self.use_hicannx = sim_params.get('use_hicannx', False)
+        self.fast_eval = False
 
         if self.use_hicannx:
-            with open('py/hx_settings.yaml') as f:
-                self.hx_settings = yaml.load(f, Loader=yaml.SafeLoader)[
-                    os.environ.get('SLURM_HARDWARE_LICENSES')]
+            self.hx_settings = get_hx_settings()
 
             self.hx_settings['retries'] = 5
             self.hx_settings['single_simtime'] = 30.
@@ -102,7 +101,6 @@ class Net(torch.nn.Module):
         self.plot_raster = False
 
         self.largest_possible_batch = 0
-        self.fast_eval = False
         self._record_timings = False
         self._record_power = False
 
@@ -333,6 +331,25 @@ class Net(torch.nn.Module):
 
     def round_weights(self, weights, precision):
         return (weights / precision).round() * precision
+
+
+def get_hx_settings() -> dict:
+    with open('py/hx_settings.yaml') as f:
+        hx_settings = yaml.load(f, Loader=yaml.SafeLoader)
+    hx_setup_no = os.environ.get('SLURM_HARDWARE_LICENSES')
+    if hx_setup_no in hx_settings:
+        return hx_settings[hx_setup_no]
+    elif 'DEFAULT' in hx_settings:
+        # adapt calibration path to default one
+        hx_settings['DEFAULT']['calibration'] = f"calibrations/{hx_setup_no}.npz"
+        if not osp.isfile(hx_settings['DEFAULT']['calibration']):
+            raise FileNotFoundError(
+                f"Calibration for the current setup {hx_setup_no} has to be created first "
+                f"(probably with 'python py/generate_calibration.py --output calibrations/{hx_setup_no}.npz')")
+        return hx_settings['DEFAULT']
+    else:
+        raise OSError(f"DEFAULT not defined and setup no {hx_setup_no} is not described"
+                      f"in hx settings file, only {hx_settings.keys()}")
 
 
 def load_data(dirname, filename, dataname):
@@ -731,7 +748,7 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
             all_validate_loss.append(validate_loss.data.cpu().detach().numpy())
 
         if (epoch % print_step) == 0:
-            print("... {0}% done, train accuracy: {4:.3f}, validation accuracy: {1:.3f},"
+            print("... {0:.0f}% done, train accuracy: {4:.3f}, validation accuracy: {1:.3f},"
                   "trainings loss: {2:.5f}, validation loss: {3:.5f}".format(
                       epoch * 100 / training_params['epoch_number'], validate_accuracy,
                       np.mean(train_loss) if len(train_loss) > 0 else np.NaN,
