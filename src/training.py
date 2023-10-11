@@ -59,6 +59,7 @@ class Net(torch.nn.Module):
         self.rounding = self.rounding_precision not in (None, False)
         self.sim_params = sim_params
         self.use_hicannx = sim_params.get('use_hicannx', False)
+        self.fast_eval = False
 
         if self.use_hicannx:
             self.hx_settings = get_hx_settings()
@@ -100,7 +101,6 @@ class Net(torch.nn.Module):
         self.plot_raster = False
 
         self.largest_possible_batch = 0
-        self.fast_eval = False
         self._record_timings = False
         self._record_power = False
 
