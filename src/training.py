@@ -748,7 +748,7 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
             all_validate_loss.append(validate_loss.data.cpu().detach().numpy())
 
         if (epoch % print_step) == 0:
-            print("... {0}% done, train accuracy: {4:.3f}, validation accuracy: {1:.3f},"
+            print("... {0:.0f}% done, train accuracy: {4:.3f}, validation accuracy: {1:.3f},"
                   "trainings loss: {2:.5f}, validation loss: {3:.5f}".format(
                       epoch * 100 / training_params['epoch_number'], validate_accuracy,
                       np.mean(train_loss) if len(train_loss) > 0 else np.NaN,
