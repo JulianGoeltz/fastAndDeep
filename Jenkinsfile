@@ -258,7 +258,7 @@ stage("inference") {
 
 stage("finalisation") {
 	runOnSlave(label: "frontend") {
-		archiveArtifacts 'fastAndDeep/experiment_results/lastrun/epoch_300/*.png'
+		archiveArtifacts 'fastAndDeep/experiment_results/lastrun/epoch_500/*.png'
 		archiveArtifacts 'fastAndDeep/src/live_accuracy.png'
 		// plot short detailed summary
 		inSingularity(app: "visionary-dls") {
@@ -326,9 +326,9 @@ setJobDescription("""
 </p>
 <p>
   <h1>Stats of last stable run</h1>
-  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_300/yin_yang_classification_train.png"/>
-  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_300/yin_yang_classification_test.png"/>
+  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_500/yin_yang_classification_train.png"/>
+  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_500/yin_yang_classification_test.png"/>
   <br />
-  <img width=600 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_300/yin_yang_summary_plot.png"/>
+  <img width=600 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_500/yin_yang_summary_plot.png"/>
 </p>
 """)
