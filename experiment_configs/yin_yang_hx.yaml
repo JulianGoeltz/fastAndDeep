@@ -13,12 +13,12 @@ network_layout:
   weight_means: [0.100, 0.075]
   weight_stdevs: [0.12, 0.15]
 training_params:
-  batch_size: 40
+  batch_size: 200
   batch_size_eval: 200
   enforce_cpu: False
-  epoch_number: 300
-  epoch_snapshots: [1, 5, 10, 15, 50, 100, 150, 200, 300]
-  learning_rate: 0.002
+  epoch_number: 500
+  epoch_snapshots: [1, 5, 10, 15, 50, 100, 150, 200, 300, 400]
+  learning_rate: 0.04
   loss:
     type: MSE
     t_correct: 1.9
