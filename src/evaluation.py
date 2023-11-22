@@ -900,3 +900,156 @@ def compare_voltages(dirname, filename, dataset, device=None, return_all=False, 
     fig.tight_layout()
     fig.savefig(osp.join(dirname, filename + '_membrane_traces.png'))
     plt.close(fig)
+
+
+def rasterplot(dirname, filename, datatype, dataset, untrained, device=None,
+               wholeset=False, net=None):
+    if device is None:
+        device = torch.device('cpu')
+    if untrained:
+        basename = filename + '_untrained'
+    else:
+        basename = filename
+    _, neuron_params, network_layout, training_params = training.load_config(osp.join(dirname, "config.yaml"))
+    criterion = utils.GetLoss(training_params,
+                              network_layout['layer_sizes'][-1],
+                              neuron_params['tau_syn'], device)
+
+    print('### Running in inference mode ###')
+
+    if wholeset:
+        batch_size = len(dataset)
+    else:
+        batch_size = training_params.get('batch_size_eval', len(dataset))
+
+    loader = torch.utils.data.DataLoader(dataset, shuffle=False,
+                                         batch_size=batch_size)
+
+    if not untrained:
+        net = utils.network_load(dirname, basename, device)
+    else:
+        if osp.isfile(dirname + "/" + basename + '_network.pt'):
+            net = utils.network_load(dirname, basename, device)
+        elif osp.isfile(dirname + '/../' + basename + '_network.pt'):
+            net = utils.network_load(dirname + '/../', basename, device)
+        else:
+            raise IOError(f"No untrained network '{basename + '_network.pt'}' found in {dirname} or {dirname}/..")
+
+    if training_params.get('use_forward_integrator', False):
+        for layer in net.layers:
+            layer.use_forward_integrator = True
+            assert 'resolution' in training_params and 'sim_time' in training_params
+            layer.sim_params['resolution'] = training_params['resolution']
+            layer.sim_params['steps'] = int(np.ceil(training_params['sim_time'] / training_params['resolution']))
+            # print(layer.sim_params['steps'])
+            layer.sim_params['decay_syn'] = float(np.exp(-training_params['resolution'] / neuron_params['tau_syn']))
+            if 'tau_mem' not in neuron_params:
+                neuron_params['tau_mem'] = neuron_params['tau_syn'] / neuron_params['g_leak']
+            layer.sim_params['decay_mem'] = float(np.exp(-training_params['resolution'] / neuron_params['tau_mem']))
+    # might use different device for analysis than training
+    for i, bias in enumerate(net.biases):
+        net.biases[i] = utils.to_device(bias, device)
+    for layer in net.layers:
+        layer.device = device
+
+    with torch.no_grad():
+        all_outputs = []
+        all_labels = []
+        all_inputs = []
+        all_hiddens = []
+        for i, data in enumerate(loader):
+            inputs, labels = data
+            if not isinstance(inputs, torch.Tensor):
+                inputs = torch.tensor(inputs, dtype=torch.float64)
+            if not inputs.dtype == torch.float64:
+                inputs = inputs.double()
+            input_times = utils.to_device(inputs, device)
+            outputs, hiddens = net(input_times)
+            all_outputs.append(outputs)
+            all_labels.append(labels)
+            all_inputs.append(inputs)
+            all_hiddens.append(hiddens)
+            if 'mnist' in filename:
+                print(f"\rinference ongoing, at {i} of {len(loader)} batches", end='')
+            print()
+            break
+        outputs = torch.vstack(all_outputs)
+        labels = torch.hstack(all_labels)
+        inputs = torch.vstack(all_inputs)
+        hiddens = torch.hstack([torch.stack(sublist) for sublist in all_hiddens])
+        selected_classes = criterion.select_classes(outputs)
+
+    # print(inputs.shape, outputs.shape, hiddens.shape)
+    fn = f"{dirname}/spiketimes_{{}}_{'untrained' if untrained else 'trained'}.npy"
+    print(f"Saving spike times at {fn}")
+    np.save(fn.format("inputs"), inputs)
+    np.save(fn.format("hiddens"), hiddens)
+    np.save(fn.format("outputs"), outputs)
+
+    plotted_samples = 5
+    fig, axes = plt.subplots(1, plotted_samples, sharey=True, sharex=True, figsize=(10, 10))
+
+    plottedata = [inputs, ] + [hiddens[i] for i in range(len(hiddens))] + [outputs, ]
+    print(f"median, spread between 25, 75 percentile of non-inf spiketimes per sample, averaged over {len(inputs)} samples")
+    for j, dat in enumerate(plottedata):
+        tmp = dat.clone().numpy()
+        tmp[np.isinf(tmp)] = np.nan
+        stds, means = np.nanstd(tmp, axis=1), np.nanmean(tmp, axis=1)
+        quantiles = np.nanquantile(tmp, q=[0.25, 0.50, 0.75], axis=1)
+        medians = quantiles[1]
+        spreads = quantiles[2] - quantiles[0]
+        print("{}\tavgd. median,IQR {:.3f}, {:.3f}; \tavgd. mean±std {:.3f}±{:.3f}".format(
+            "input" if j == 0 else ("output" if (j == len(plottedata) - 1) else f"hidden{j}"),
+            np.mean(medians),
+            np.mean(spreads),
+            np.mean(means),
+            np.mean(stds),
+        ))
+    for i, ax in enumerate(axes):
+        plotted_sample = i
+        offset = 0
+        artists = []
+        for j, dat in enumerate(plottedata):
+            islast = j == len(plottedata) - 1
+            tmp = dat[plotted_sample][:1000].reshape((-1, 1))
+            # tmp[np.isinf(tmp)] = 4.0
+            linelengths = 1 if not islast else 3
+            offsets = np.arange(len(tmp)) * linelengths + offset
+            offset += len(tmp) * linelengths
+            ax.eventplot(
+                tmp,
+                color=f"C{j}" if not islast else "C9",
+                lineoffsets=offsets,
+                linelengths=linelengths,
+            )
+            artists.append(mpatches.Patch(
+                color=f"C{j}" if not islast else "C9",
+                label="input" if j == 0 else ("output" if islast else f"hidden{j}"),
+            ))
+
+            if not islast:
+                ax.axhline(-0.5 + offset,
+                           color='black', lw=0.5)
+            ax.axvline(0.15, color='black', lw=0.5, alpha=0.4, zorder=-5)
+
+        ax.set_ylim(0, offset + 4)
+        ax.set_xlim(-0.0, 3.5)
+        if i == 0:
+            ax.set_ylabel('neuron idcs')
+        else:
+            ax.set_yticklabels([])
+        if i == int(plotted_samples // 2):
+            ax.set_xlabel("time [$\\tau_{syn}$]")
+        if i == plotted_samples - 1:
+            legend = ax.legend(
+                handles=artists, loc='lower right',
+            )
+
+    fig.tight_layout()
+    fn = f'spikeraster_{"untrained" if untrained else "trained"}'
+    for ex in ['.png', ]:  #  '.pdf', '.svg']:
+        for d in [dirname + '/', ]:  # '']:
+            print(f"saving plot as {d + fn + ex}")
+            fig.savefig(d + fn + ex, dpi=300)
+
+    return

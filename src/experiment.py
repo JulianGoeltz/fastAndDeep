@@ -134,6 +134,10 @@ if __name__ == '__main__':
         print(f"After inference, the accuracy is {acc * 100:.2f}%.")
     elif mode == 'eval' or (net.use_hicannx and mode != 'fast_eval'):
         # generic plots:
+        evaluation.rasterplot(dirname, filename, 'test', dataset_test, untrained=False,
+                              device=device, net=net, wholeset=False)
+        evaluation.rasterplot(dirname, filename, 'test', dataset_test, untrained=True,
+                              device=device, net=net, wholeset=False)
         evaluation.confusion_matrix('test', dataset_test, dirname=dirname, filename=filename, device=device, net=net)
         evaluation.confusion_matrix('train', dataset_train, dirname=dirname, filename=filename,
                                     device=device, net=net)
