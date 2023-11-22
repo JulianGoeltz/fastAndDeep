@@ -76,6 +76,8 @@ def run_inference(dirname, filename, datatype, dataset, untrained, reference, de
             layer.sim_params['steps'] = int(np.ceil(training_params['sim_time'] / training_params['resolution']))
             print(layer.sim_params['steps'])
             layer.sim_params['decay_syn'] = float(np.exp(-training_params['resolution'] / neuron_params['tau_syn']))
+            if 'tau_mem' not in neuron_params:
+                neuron_params['tau_mem'] = neuron_params['tau_syn'] / neuron_params['g_leak']
             layer.sim_params['decay_mem'] = float(np.exp(-training_params['resolution'] / neuron_params['tau_mem']))
     # might use different device for analysis than training
     for i, bias in enumerate(net.biases):
@@ -102,10 +104,10 @@ def run_inference(dirname, filename, datatype, dataset, untrained, reference, de
             all_hiddens.append(hiddens)
             if 'mnist' in filename:
                 print(f"\rinference ongoing, at {i} of {len(loader)} batches", end='')
-        outputs = torch.stack([item for sublist in all_outputs for item in sublist])
-        labels = np.array([item.item() for sublist in all_labels for item in sublist])
-        inputs = torch.stack([item for sublist in all_inputs for item in sublist])
-        hiddens = torch.stack([item for sublist in all_hiddens for item in sublist[0]])
+        outputs = torch.vstack(all_outputs)
+        labels = torch.hstack(all_labels)
+        inputs = torch.vstack(all_inputs)
+        hiddens = torch.hstack([torch.stack(sublist) for sublist in all_hiddens])
         selected_classes = criterion.select_classes(outputs)
 
     print()

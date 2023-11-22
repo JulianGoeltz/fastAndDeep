@@ -40,6 +40,10 @@ class Net(torch.nn.Module):
                 self.bias_times = [network_layout['bias_times']] * self.n_layers
         else:
             self.bias_times = []
+
+        assert self.n_layers == len(self.layer_sizes)
+        assert self.n_layers == len(self.bias_times)
+
         self.biases = []
         for i in range(self.n_layers):
             bias = utils.to_device(utils.bias_inputs(self.n_biases[i], self.bias_times[i]), device)
