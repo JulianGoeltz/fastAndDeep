@@ -1,0 +1,80 @@
+dataset: mnist
+network_layout:
+  bias_times: []
+  layer_sizes:
+  - 400
+  - 400
+  - 400
+  - 400
+  - 10
+  n_biases:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  n_inputs: 784
+  n_layers: 5
+  weight_means:
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.15
+  weight_stdevs:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.8
+neuron_params:
+  g_leak: 1.0
+  leak: 0.0
+  tau_syn: 1.0
+  threshold: 1.0
+training_params:
+  alpha: 0.005
+  batch_size: 80
+  batch_size_eval: 150
+  beta: 1.0
+  enforce_cpu: false
+  epoch_number: 300
+  epoch_snapshots:
+  - 5
+  - 10
+  - 30
+  - 50
+  - 100
+  - 140
+  - 150
+  - 200
+  - 250
+  - 300
+  learning_rate: 0.005
+  lr_scheduler:
+    gamma: 0.9
+    step_size: 15
+    type: StepLR
+  max_dw_norm: 0.2
+  max_num_missing_spikes:
+  - 0.15
+  - 0.15
+  - 0.15
+  - 0.15
+  - 0.05
+  momentum: 0
+  numpy_seed: 33333333
+  optimizer: adam
+  print_step_percent: 5.0
+  resolution: 0.01
+  sim_time: 3.5
+  torch_seed: 33333333
+  training_noise:
+    mean: 0.0
+    std_dev: 0.3
+  use_forward_integrator: true
+  use_hicannx: false
+  weight_bumping_exp: true
+  weight_bumping_targeted: true
+  weight_bumping_value: 0.0005
+  xi: 0.2
