@@ -973,18 +973,18 @@ def rasterplot(dirname, filename, datatype, dataset, untrained, device=None,
                 print(f"\rinference ongoing, at {i} of {len(loader)} batches", end='')
             print()
             break
-        outputs = torch.vstack(all_outputs)
-        labels = torch.hstack(all_labels)
-        inputs = torch.vstack(all_inputs)
-        hiddens = torch.hstack([torch.stack(sublist) for sublist in all_hiddens])
-        selected_classes = criterion.select_classes(outputs)
+        outputs = torch.vstack(all_outputs).cpu()
+        labels = torch.hstack(all_labels).cpu()
+        inputs = torch.vstack(all_inputs).cpu()
+        hiddens = torch.hstack([torch.stack(sublist) for sublist in all_hiddens]).cpu()
+        selected_classes = criterion.select_classes(outputs).cpu()
 
     # print(inputs.shape, outputs.shape, hiddens.shape)
     fn = f"{dirname}/spiketimes_{{}}_{'untrained' if untrained else 'trained'}.npy"
     print(f"Saving spike times at {fn}")
-    np.save(fn.format("inputs"), inputs)
-    np.save(fn.format("hiddens"), hiddens)
-    np.save(fn.format("outputs"), outputs)
+    np.save(fn.format("inputs"), inputs.numpy())
+    np.save(fn.format("hiddens"), hiddens.numpy())
+    np.save(fn.format("outputs"), outputs.numpy())
 
     plotted_samples = 5
     fig, axes = plt.subplots(1, plotted_samples, sharey=True, sharex=True, figsize=(10, 10))
