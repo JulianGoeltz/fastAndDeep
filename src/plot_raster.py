@@ -38,6 +38,7 @@ def rasterplot(dirname, plotted_sample):
 
     n_bins = 30
     scaling = 10
+    subsampling = 1
 
     # print(f"median, spread between 25, 75 percentile of non-inf spiketimes per sample, averaged over {len(inputs)} samples")
     # for j, dat in enumerate(plottedata):
@@ -78,22 +79,37 @@ def rasterplot(dirname, plotted_sample):
             # colour = f"C{i_lay}" if not islast else "C9",
             colour = 'black'
             ax.eventplot(
-                tmp,
+                # tmp,
+                tmp if islast else tmp[::subsampling],
                 color=colour,
-                linelengths=1 if islast else 2,
-                linewidths=None if islast else 2,
+                linelengths=1 if islast else 5,
+                linewidths=1 if islast else 1,
                 # lineoffsets=offsets,
                 # linelengths=linelengths,
+                alpha=1,
             )
 
             if not islast:
-                ax.hist(
+                hist, bin_edges = np.histogram(
                     tmp[np.logical_not(np.isinf(tmp))],
                     bins=np.linspace(0, 3.5 * scaling, n_bins),
-                    histtype='step',
-                    color="C1",
-                    alpha=0.8,
                 )
+                # scale hist to 0.9 of maximum
+                hist = hist * 2 / subsampling
+                ax.stairs(
+                    hist,
+                    bin_edges,
+                    color="#d15301",
+                    alpha=1.0,
+                )
+
+                # ax.hist(
+                #     tmp[np.logical_not(np.isinf(tmp))],
+                #     bins=np.linspace(0, 3.5 * scaling, n_bins),
+                #     histtype='step',
+                #     color="#d15301",
+                #     alpha=1.0,
+                # )
 
             # label = "input" if i_lay == 0 else ("output" if islast else f"hidden{i_lay}")
             label = "output" if islast else f"hidden{i_lay}"
@@ -102,7 +118,7 @@ def rasterplot(dirname, plotted_sample):
                 label=label,
             ))
 
-            ax.set_ylim(0, len(tmp))
+            ax.set_ylim(0, len(tmp if islast else tmp[::subsampling]))
             ax.set_xlim(-0.0, 3.5 * scaling)
             if i_trai == 0:
                 ax.set_ylabel(
