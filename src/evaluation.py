@@ -355,10 +355,16 @@ def weight_histograms(dirname='tmp', filename='', show=False, device=None):
         weights = net.layers[i].weights.data.detach().cpu().numpy()
         weights_untrained = net_untrained.layers[i].weights.data.detach().cpu().numpy()
         axes[i].xaxis.set_tick_params(which='both', labelbottom=True)
-        axes[i].hist(weights_untrained.flatten(), density=True, rwidth=0.9, label='initial',
-                     alpha=0.4, color='C1')
-        axes[i].hist(weights.flatten(), density=True, rwidth=0.9, label='layer {0}'.format(i),
-                     alpha=0.7, color='C0')
+        axes[i].hist(
+            weights_untrained.flatten(), density=True, rwidth=0.9,
+            alpha=0.4, color='C1',
+            label=f"initial: {np.mean(weights_untrained):.2f}±{np.std(weights_untrained):.2f}"
+        )
+        axes[i].hist(
+            weights.flatten(), density=True, rwidth=0.9,
+            alpha=0.7, color='C0',
+            label=f"layer {i}: {np.mean(weights):.2f}±{np.std(weights):.2f}"
+        )
         axes[i].legend()
         axes[i].set_xlabel('weights')
     path = dirname + '/' + filename + '_weight_hist.png'
@@ -1033,7 +1039,7 @@ def rasterplot(dirname, filename, datatype, dataset, untrained, device=None,
             ax.axvline(0.15, color='black', lw=0.5, alpha=0.4, zorder=-5)
 
         ax.set_ylim(0, offset + 4)
-        ax.set_xlim(-0.0, 3.5)
+        ax.set_xlim(-0.0, training_params['sim_time'])
         if i == 0:
             ax.set_ylabel('neuron idcs')
         else:
