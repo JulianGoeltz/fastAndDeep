@@ -87,6 +87,9 @@ class Net(torch.nn.Module):
                 self.sim_params['clip_weights_max'] = 63 / self.hx_settings['scale_weights']
 
             self.init_hicannx(device)
+        else:
+            # clip the weights accordingly
+            self.write_weights_to_hicannx()
 
         if self.rounding:
             print(f"#### Rounding the weights to precision {self.rounding_precision}")
