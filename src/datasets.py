@@ -235,6 +235,60 @@ class YinYangDataset(Dataset):
         return len(self.cs)
 
 
+class MorseDataset(Dataset):
+    def __init__(self, size=1000, seed=42,isi = 1.,inter_sample_noise = (0.,0.), isi_noise = (0.,0.) ):
+        # if the file already exist, load else create and save in a file.
+        # Define Morse code mappings for all 26 characters
+        '''
+        which: str - 'train', 'val' or 'test'
+        size: int - number of samples per class, default 1000. 
+        seed: int - random seed for reproducibility, default 42.
+        isi: int - inter-spike interval, default 1.
+        inter_sample_noise: tuple - mean and standard deviation of the noise added to the intial time, default (1,0.1).
+        isi_noise: tuple - mean and standard deviation of the noise added to the inter-spike interval, default (1,0.1).
+        if isi noise is zero and inter_sample_noise is non-zero, each sample with be shifted by the same amount of time but the consecutive spike will be at the periodic.
+
+        '''
+        morse_code_map = {
+            'A': '.-',   'B': '-...', 'C': '-.-.', 'D': '-..',   'E': '.',
+            'F': '..-.', 'G': '--.',  'H': '....', 'I': '..',    'J': '.---',
+            'K': '-.-',  'L': '.-..', 'M': '--',   'N': '-.',    'O': '---',
+            'P': '.--.', 'Q': '--.-', 'R': '.-.',  'S': '...',   'T': '-',
+            'U': '..-',  'V': '...-', 'W': '.--',  'X': '-..-',  'Y': '-.--',
+            'Z': '--..'
+        }
+        self.vals = []
+        self.cs = []
+        max_length = max(len(code) for code in morse_code_map.values())
+        np.random.seed(seed)
+        for _ in range(size):
+            for char, code in morse_code_map.items():
+                initial_time = 0. + np.random.normal(*inter_sample_noise)
+                jitter = np.random.normal(*isi_noise)      
+                isi_sample = isi + np.around(jitter,2)
+                time = initial_time
+                spikes = [[],[]]
+                for symbol in code:
+                    if symbol == '.': 
+                        spikes[0].append(time)
+                        spikes[1].append(float('inf'))                    
+                    else:
+                        spikes[0].append(float('inf'))
+                        spikes[1].append(time)
+                    
+                    time += isi_sample
+                spikes[0] += [float('inf')] * (max_length - len(spikes[0]))
+                spikes[1] += [float('inf')] * (max_length - len(spikes[1]))
+                self.vals.append(spikes)
+                self.cs.append(char)
+        
+        
+    def __getitem__(self, index):
+        return self.vals[index], self.cs[index]
+
+    def __len__(self):
+        return len(self.cs)
+
 class XOR(Dataset):
     def __init__(self, which='train', early=0.15, late=2.,
                  r_small=0.1, r_big=0.5, size=1000, seed=42,
