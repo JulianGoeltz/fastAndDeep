@@ -235,7 +235,7 @@ class YinYangDataset(Dataset):
         return len(self.cs)
 
 
-class MorseDataset():
+class MorseDataset(Dataset):
     def __init__(self, size=1000, seed=42,isi = 1.,inter_sample_noise = (0.,0.), isi_noise = (0.,0.) ):
         # if the file already exist, load else create and save in a file.
         # Define Morse code mappings for all 26 characters
@@ -257,8 +257,8 @@ class MorseDataset():
             'U': '..-',  'V': '...-', 'W': '.--',  'X': '-..-',  'Y': '-.--',
             'Z': '--..'
         }
-        self.__vals = []
-        self.__cs = []
+        self.vals = []
+        self.cs = []
         max_length = max(len(code) for code in morse_code_map.values())
         np.random.seed(seed)
         for _ in range(size):
@@ -279,8 +279,8 @@ class MorseDataset():
                     time += isi_sample
                 spikes[0] += [float('inf')] * (max_length - len(spikes[0]))
                 spikes[1] += [float('inf')] * (max_length - len(spikes[1]))
-                self.__vals.append(spikes)
-                self.__cs.append(char)
+                self.vals.append(spikes)
+                self.cs.append(char)
         
         
     def __getitem__(self, index):
