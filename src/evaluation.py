@@ -1,4 +1,6 @@
 #!python3
+import matplotlib.colors as mpl_colors
+import matplotlib.cm as mpl_cm
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as mpl_gs
@@ -386,8 +388,12 @@ def weight_matrix(dirname='tmp', filename='', device=None):
         fig.suptitle('Weight matrix after training: layer {0}'.format(i))
         weights = net.layers[i].weights.data.detach().cpu().numpy()
         print(weights.shape)
-        color_map = axes.imshow(weights, aspect='auto', origin='lower')
-        color_map.set_cmap("RdBu")
+        color_map = axes.imshow(
+            weights, aspect='auto', origin='lower',
+            norm=mpl_colors.CenteredNorm(),
+            cmap=mpl_cm.seismic,
+            interpolation='nearest',
+        )
         fig.colorbar(color_map)
         path = dirname + '/' + filename + '_weight_matrix_layer_{0}.png'.format(i)
         plt.savefig(path)
