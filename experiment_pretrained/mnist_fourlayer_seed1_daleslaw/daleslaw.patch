@@ -1,0 +1,22 @@
+diff --git a/src/training.py b/src/training.py
+index acd2cd7..4aa2215 100644
+--- a/src/training.py
++++ b/src/training.py
+@@ -251,7 +251,16 @@ class Net(torch.nn.Module):
+             if self.sim_params['clip_weights_max']:
+                 for i, layer in enumerate(self.layers):
+                     maxweight = self.sim_params['clip_weights_max']
+-                    self.layers[i].weights.data = torch.clamp(layer.weights.data, -maxweight, maxweight)
++                    # # ######### old code, clipping with (-max, max)
++                    # self.layers[i].weights.data = torch.clamp(layer.weights.data, -maxweight, maxweight)
++
++                    # # ######### only excitatory
++                    # self.layers[i].weights.data = torch.clamp(layer.weights.data, 0, maxweight)
++
++                    # ######### dale's law: first 300 excitatory, rest inhibitory
++                    if i != 0:
++                        self.layers[i].weights.data[:300] = torch.clamp(layer.weights.data[:300], 0, maxweight)
++                        self.layers[i].weights.data[300:] = torch.clamp(layer.weights.data[300:], -maxweight, 0)
+             return
+ 
+         maxweight = 63 / self.hx_settings['scale_weights']
