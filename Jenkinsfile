@@ -54,7 +54,7 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 			tmpErrorMsg = "\n\n```\n${tmpErrorMsg}\n```"
 		}
 	}
-	String message = "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```${tmpErrorMsg}"
+	String message = "**_oneAlloc** Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```${tmpErrorMsg}"
 	mattermostSend(
 		channel: notificationChannel,
 		message: message,
