@@ -33,7 +33,7 @@ def recordExitSuccess(int success) {
 }
 
 
-def beautifulMattermostSend(Throwable t, Boolean readError) {
+def beautifulMattermostSend(Throwable t, Boolean readError, Boolean dontThrow=false) {
 	if (SentMattermost) {
 		throw t
 	}
@@ -66,7 +66,9 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 
 	recordExitSuccess(0);
 
+	if(!dontThrow) {
 	throw t
+	}
 }
 
 
@@ -157,6 +159,8 @@ stage("reconfigure chip") {
 	}
 }
 
+@Field Boolean calibFailed = false;
+
 stage("create calib") {
 	try {
 			inSingularity(app: "visionary-dls") {
@@ -171,7 +175,29 @@ stage("create calib") {
 				}
 			}
 	} catch (Throwable t) {
+		calibFailed = true;
+		beautifulMattermostSend(t, true, true);
+	}
+}
+
+stage("create calib (powercycle needed)") {
+	when { expression { calibFailed } }
+	steps {
+	try {
+			inSingularity(app: "visionary-dls") {
+				withModules(modules: ["localdir"]) {
+					jesh("module list")
+					jesh("module show localdir")
+					jeshWithLoggedStds(
+						"cd fastAndDeep/src; python py/generate_calibration.py --output calibrations/W${wafer}F${fpga}.npz",
+						"tmp_stdout.log",
+						"tmp_stderr.log"
+					)
+				}
+			}
+	} catch (Throwable t) {
 		beautifulMattermostSend(t, true);
+	}
 	}
 }
 
