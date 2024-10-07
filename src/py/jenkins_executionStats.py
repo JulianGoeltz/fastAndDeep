@@ -5,7 +5,7 @@ import numpy as np
 from pprint import pprint
 
 
-json_filename = '/jenkins/results/p_jg_FastAndDeep/execution_stats.json'
+json_filename = '/jenkins/results/p_jg_FastAndDeep_oneAlloc/execution_stats.json'
 
 
 if __name__ == "__main__":

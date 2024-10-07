@@ -19,7 +19,7 @@ def jeshWithLoggedStds(String script, String filenameStdout, String filenameStde
 }
 
 def recordExitSuccess(int success) {
-	String filename_errors = '/jenkins/results/p_jg_FastAndDeep/execution_stats.json';
+	String filename_errors = '/jenkins/results/p_jg_FastAndDeep_oneAlloc/execution_stats.json';
 
 	runOnSlave(label: "frontend") {
 		// add to the json file
@@ -138,20 +138,20 @@ stage("Checkout and determine chip") {
 	}
 }
 
+onSlurmResource(partition: "cube",
+		"cpus-per-task": 16,
+		wafer: "${wafer}",
+		"fpga-without": "${fpga}",
+		time: "6:0:0",
+		mem: "30G") {
+
 stage("reconfigure chip") {
 	try {
-		onSlurmResource(partition: "cube",
-				"cpus-per-task": 8,
-				wafer: "${wafer}",
-				"fpga-without": "${fpga}",
-				time: "10:0",
-				mem: "8G") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["sw-macu_x86"]) {
 					jesh("hxcube_control.py --reconfigure")
 				}
 			}
-		}
 	} catch (Throwable t) {
 		beautifulMattermostSend(t, true);
 	}
@@ -159,12 +159,6 @@ stage("reconfigure chip") {
 
 stage("create calib") {
 	try {
-		onSlurmResource(partition: "cube",
-				"cpus-per-task": 8,
-				wafer: "${wafer}",
-				"fpga-without": "${fpga}",
-				time: "10:0",
-				mem: "8G") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
 					jesh("module list")
@@ -176,7 +170,6 @@ stage("create calib") {
 					)
 				}
 			}
-		}
 	} catch (Throwable t) {
 		beautifulMattermostSend(t, true);
 	}
@@ -221,12 +214,6 @@ stage("training") {
 	//	}
 	//}
 	try {
-		onSlurmResource(partition: "cube",
-				"cpus-per-task": 8,
-				wafer: "${wafer}",
-				"fpga-without": "${fpga}",
-				time: "6:0:0",
-				mem: "16G") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
 					// to get all information about the executing node
@@ -239,7 +226,6 @@ stage("training") {
 					)
 				}
 			}
-		}
 	} catch (Throwable t) {
 		beautifulMattermostSend(t, true);
 	}
@@ -247,12 +233,6 @@ stage("training") {
 
 stage("inference") {
 	try {
-		onSlurmResource(partition: "cube",
-				"cpus-per-task": 8,
-				wafer: "${wafer}",
-				"fpga-without": "${fpga}",
-				time: "10:0",
-				mem: "16G") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
 					jesh('env')
@@ -268,7 +248,6 @@ stage("inference") {
 					}
 				}
 			}
-		}
 	} catch (Throwable t) {
 		beautifulMattermostSend(t, true);
 	}
@@ -327,6 +306,8 @@ stage("finalisation") {
  * Setting the description of the jenkins job (to have it in the repository).
  */
 setJobDescription("""
+<h1>This is the same as `p_jg_FastAndDeep` but keeping the hardware allocation for the entire time</h1>
+
 <p>
   Repository is located <a href="https://github.com/JulianGoeltz/fastanddeep">on GitHub</a>, Jenkinsjob is executed daily in the hour after midnight and should take around 1.5 hours.
   Details on the theory <a href="https://arxiv.org/abs/1912.11443">can be found in the publication arXiv:1912.11443</a>, it is used to classify <a href="https://arxiv.org/abs/2102.08211">the Yin-Yang dataset</a>.
