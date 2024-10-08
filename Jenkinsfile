@@ -180,9 +180,7 @@ stage("create calib") {
 	}
 }
 
-stage("create calib (powercycle needed)") {
-	when { expression { calibFailed } }
-	steps {
+conditionalStage(name: "create calib (powercycle needed)", skip: !calibFailed) {
 	try {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
@@ -197,7 +195,6 @@ stage("create calib (powercycle needed)") {
 			}
 	} catch (Throwable t) {
 		beautifulMattermostSend(t, true);
-	}
 	}
 }
 
