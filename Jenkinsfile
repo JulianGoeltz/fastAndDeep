@@ -183,6 +183,9 @@ stage("create calib") {
 conditionalStage(name: "create calib (powercycle needed)", skip: !calibFailed) {
 	try {
 			inSingularity(app: "visionary-dls") {
+				withModules(modules: ["sw-macu_x86"]) {
+					jesh("hxcube_control.py --powercycle")
+				}
 				withModules(modules: ["localdir"]) {
 					jesh("module list")
 					jesh("module show localdir")
