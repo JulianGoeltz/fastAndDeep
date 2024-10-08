@@ -176,6 +176,7 @@ stage("create calib") {
 			}
 	} catch (Throwable t) {
 		calibFailed = true;
+		SentMattermost = false;
 		beautifulMattermostSend(t, true, true);
 	}
 }
