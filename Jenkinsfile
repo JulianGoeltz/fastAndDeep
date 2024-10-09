@@ -147,19 +147,7 @@ onSlurmResource(partition: "cube",
 		time: "6:0:0",
 		mem: "30G") {
 
-stage("reconfigure chip") {
-	try {
-			inSingularity(app: "visionary-dls") {
-				withModules(modules: ["sw-macu_x86"]) {
-					jesh("hxcube_control.py --reconfigure")
-				}
-			}
-	} catch (Throwable t) {
-		beautifulMattermostSend(t, true);
-	}
-}
-
-@Field Boolean calibFailed = false;
+@Field Boolean calibDone = false;
 
 stage("create calib") {
 	try {
@@ -174,18 +162,19 @@ stage("create calib") {
 					)
 				}
 			}
+			calibDone = true;
 	} catch (Throwable t) {
-		calibFailed = true;
 		SentMattermost = false;
 		beautifulMattermostSend(t, true, true);
 	}
 }
 
-conditionalStage(name: "create calib (powercycle needed)", skip: !calibFailed) {
+conditionalStage(name: "create calib (after reconfigure&set-wafer-id)", skip: calibDone) {
 	try {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["sw-macu_x86"]) {
-					jesh("hxcube_control.py --powercycle")
+					jesh("hxcube_control.py --reconfigure")
+					jesh("hxcube_control.py --set-wafer-id")
 				}
 				withModules(modules: ["localdir"]) {
 					jesh("module list")
@@ -197,7 +186,33 @@ conditionalStage(name: "create calib (powercycle needed)", skip: !calibFailed) {
 					)
 				}
 			}
+			calibDone = true;
 	} catch (Throwable t) {
+		SentMattermost = false;
+		beautifulMattermostSend(t, true);
+	}
+}
+
+conditionalStage(name: "create calib (after powercycle)", skip: calibDone) {
+	try {
+			inSingularity(app: "visionary-dls") {
+				withModules(modules: ["sw-macu_x86"]) {
+					jesh("hxcube_control.py --powercycle")
+					jesh("hxcube_control.py --set-wafer-id")
+				}
+				withModules(modules: ["localdir"]) {
+					jesh("module list")
+					jesh("module show localdir")
+					jeshWithLoggedStds(
+						"cd fastAndDeep/src; python py/generate_calibration.py --output calibrations/W${wafer}F${fpga}.npz",
+						"tmp_stdout.log",
+						"tmp_stderr.log"
+					)
+				}
+			}
+			calibDone = true;
+	} catch (Throwable t) {
+		SentMattermost = false;
 		beautifulMattermostSend(t, true);
 	}
 }
