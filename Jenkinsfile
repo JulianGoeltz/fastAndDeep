@@ -189,11 +189,11 @@ conditionalStage(name: "create calib (after reconfigure&set-wafer-id)", skip: ca
 			calibDone = true;
 	} catch (Throwable t) {
 		SentMattermost = false;
-		beautifulMattermostSend(t, true);
+		beautifulMattermostSend(t, true, true);
 	}
 }
 
-conditionalStage(name: "create calib (after powercycle)", skip: calibDone) {
+conditionalStage(name: "create calib (after powercycle&set-wafer-id)", skip: calibDone) {
 	try {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["sw-macu_x86"]) {
