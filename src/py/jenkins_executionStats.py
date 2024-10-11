@@ -42,13 +42,18 @@ if __name__ == "__main__":
     print("where did the failures occur:")
     pprint(rate_laststeps)
 
-    rate_setups_calib, rate_setups_final = {}, {}
+    rate_setups_train, rate_setups_calib, rate_setups_final = {}, {}, {}
     for setup in np.unique([all_data[key]['HX'] for key in all_data]):
         tmp = np.sum(
             [all_data[key]['HX'] == setup
              for key in build_keys if all_data[key]['laststep'] == 'create calib'])
         if tmp > 0:
             rate_setups_calib[setup] = tmp
+        tmp = np.sum(
+            [all_data[key]['HX'] == setup
+             for key in build_keys if all_data[key]['laststep'] == 'training'])
+        if tmp > 0:
+            rate_setups_train[setup] = tmp
         tmp = np.sum(
             [all_data[key]['HX'] == setup
              for key in build_keys if (
@@ -59,5 +64,7 @@ if __name__ == "__main__":
             rate_setups_final[setup] = tmp
     print("distribution of setups that failed during calib:")
     pprint(rate_setups_calib)
+    print("distribution of setups that failed during training:")
+    pprint(rate_setups_train)
     print("distribution of setups that failed during finalisation:")
     pprint(rate_setups_final)
