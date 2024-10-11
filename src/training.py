@@ -471,6 +471,11 @@ def save_untrained_network(dirname, filename, net):
         # save hardware licence to identify the used hicann
         with open(path + filename + '_hw_licences.txt', 'w') as f:
             f.write(os.environ.get('SLURM_HARDWARE_LICENSES'))
+        # save fpga bitfile info
+        from pyhxcomm_vx import ManagedConnection
+        with ManagedConnection() as connection:
+            with open(dirname + filename + '_fpga_bitfile.yaml', 'w') as f:
+                f.write(connection.bitfile_info)
         # save current calib settings
         shutil.copy(osp.join('py', 'hx_settings.yaml'), path + '/hw_settings.yaml')
     return
@@ -529,6 +534,11 @@ def save_data(dirname, filename, net, label_weights, train_losses, train_accurac
         # save hardware licence to identify the used hicann
         with open(dirname + filename + '_hw_licences.txt', 'w') as f:
             f.write(os.environ.get('SLURM_HARDWARE_LICENSES'))
+        # save fpga bitfile info
+        from pyhxcomm_vx import ManagedConnection
+        with ManagedConnection() as connection:
+            with open(dirname + filename + '_fpga_bitfile.yaml', 'w') as f:
+                f.write(connection.bitfile_info)
         # save current calib settings
         with open(dirname + '/hx_settings.yaml', 'w') as f:
             yaml.dump({os.environ.get('SLURM_HARDWARE_LICENSES'): net.hx_settings}, f)
