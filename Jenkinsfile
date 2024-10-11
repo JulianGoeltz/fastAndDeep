@@ -61,13 +61,14 @@ def beautifulMattermostSend(Throwable t, Boolean readError, Boolean dontThrow=fa
 		failOnError: true,
 		endpoint: "https://chat.bioai.eu:6443/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 	print(message)
-	SentMattermost = true
-	currentBuild.result = 'FAILED'
 
 	recordExitSuccess(0);
 
 	if(!dontThrow) {
-	throw t
+		SentMattermost = true
+		currentBuild.result = 'FAILED'
+
+		throw t
 	}
 }
 
@@ -164,7 +165,6 @@ stage("create calib") {
 			}
 			calibDone = true;
 	} catch (Throwable t) {
-		SentMattermost = false;
 		beautifulMattermostSend(t, true, true);
 	}
 }
@@ -188,7 +188,6 @@ conditionalStage(name: "create calib (after reconfigure&set-wafer-id)", skip: ca
 			}
 			calibDone = true;
 	} catch (Throwable t) {
-		SentMattermost = false;
 		beautifulMattermostSend(t, true, true);
 	}
 }
@@ -212,7 +211,6 @@ conditionalStage(name: "create calib (after powercycle&set-wafer-id)", skip: cal
 			}
 			calibDone = true;
 	} catch (Throwable t) {
-		SentMattermost = false;
 		beautifulMattermostSend(t, true);
 	}
 }
