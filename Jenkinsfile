@@ -138,25 +138,6 @@ stage("Checkout and determine chip") {
 	}
 }
 
-stage("reconfigure chip") {
-	try {
-		onSlurmResource(partition: "cube",
-				"cpus-per-task": 8,
-				wafer: "${wafer}",
-				"fpga-without": "${fpga}",
-				time: "10:0",
-				mem: "8G") {
-			inSingularity(app: "visionary-dls") {
-				withModules(modules: ["sw-macu_x86"]) {
-					jesh("hxcube_control.py --reconfigure")
-				}
-			}
-		}
-	} catch (Throwable t) {
-		beautifulMattermostSend(t, true);
-	}
-}
-
 stage("create calib") {
 	try {
 		onSlurmResource(partition: "cube",
