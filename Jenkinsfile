@@ -188,11 +188,11 @@ conditionalStage(name: "create calib (after reconfigure&set-wafer-id)", skip: ca
 			}
 			calibDone = true;
 	} catch (Throwable t) {
-		beautifulMattermostSend(t, true, true);
+		beautifulMattermostSend(t, true);
 	}
 }
 
-/*
+/* // if reenabling, set dontThrow=true in beautifulMattermostSend above
 conditionalStage(name: "create calib (after powercycle&set-wafer-id)", skip: calibDone) {
 	try {
 			inSingularity(app: "visionary-dls") {
