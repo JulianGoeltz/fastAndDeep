@@ -3,6 +3,11 @@ Training a network of LIF neurons to classify patterns using `pytorch` as used i
 
 If you run into any problems, have any comments or question, please feel free to create issues or pull requests, or contact us directly (julian.goeltz@kip.uni-heidelberg.de and laura.kriener@unibe.ch).
 
+> [!NOTE]
+> We are currently working on expanding the existing public code base to include (clean) code to train transmission delays alongside synaptic weights ([a preprint is available](https://arxiv.org/abs/2404.19165)).
+This code will be publicly available soon.
+
+
 ## Requirements
 Clone the repository with
 ```
