@@ -7,6 +7,10 @@ If you run into any problems, have any comments or question, please feel free to
 > We are currently working on expanding the existing public code base to include (clean) code to train transmission delays alongside synaptic weights ([a preprint is available](https://arxiv.org/abs/2404.19165)).
 This code will be publicly available soon.
 
+> [!NOTE]
+> The manuscript ["Synchronization and semantization in deep spiking networks"](https://doi.org/10.48550/arXiv.2508.12975) analyses networks trained with this code base.
+> Both the [trained networks](https://github.com/JulianGoeltz/fastAndDeep/tree/WeHaveToGoDeeper/experiment_pretrained) and the [minor adaptations](https://github.com/JulianGoeltz/fastAndDeep/blob/WeHaveToGoDeeper/experiment_pretrained/mnist_fourlayer_seed1_daleslaw/daleslaw.patch) to the training code can be found in the branch [`WeHaveToGoDeeper`](https://github.com/JulianGoeltz/fastAndDeep/tree/WeHaveToGoDeeper).
+
 
 ## Requirements
 Clone the repository with
