@@ -1,0 +1,72 @@
+dataset:
+  input_params:
+    input_mean: 1
+    input_std_dev: 0
+    num_samples: 1
+  name: 'single_in_single_out'
+neuron_params:
+  g_leak: 1.0
+  leak: 0.0
+  tau_syn: 1.0
+  threshold: 1.0
+network_layout:
+  layers:
+    - name: 'DelaySynaptic'
+      delay_mean: 5.0
+      delay_std: 0.05
+      trainable: true
+      monitor: true
+    - name: 'EqualtimeLayer'
+      size: 1
+      weights_mean: 1.5
+      weights_std: 0.8
+      biases: []
+      max_num_missing_spikes: 0.3
+      trainable: true
+      monitor: true
+#    - name: 'DelaySynaptic'
+#      delay_mean: 1.0
+#      delay_std: 0.05
+#      trainable: true
+#      monitor: true
+#    - name: 'EqualtimeLayer'
+#      size: 1
+#      weights_mean: 0.5
+#      weights_std: 0.8
+#      biases: []
+#      max_num_missing_spikes: 0.0
+#      monitor : true
+#      trainable: true
+  n_inputs: 1
+training_params:
+  batch_size: 150
+  batch_size_eval: 200
+  enforce_cpu: False
+  epoch_number: 300
+  epoch_snapshots: [100, 200]
+  learning_rate: 0.05
+  loss:
+#    type: TTFS
+#    alpha: 0.005
+#    beta: 3.
+#    xi: 0.2
+     type: MSE
+     t_correct: 5
+     t_wrong: 0
+  lr_scheduler: {gamma: 0.95, step_size: 20, type: StepLR}
+  max_dw_norm: 10
+  momentum: 0
+  numpy_seed: 12345
+  optimizer: adam
+  print_step_percent: 5.0
+  resolution: 0.01
+  sim_time: 4.0
+  torch_seed: 2000
+  training_noise: false
+  use_forward_integrator: false
+  use_hicannx: false
+  weight_bumping_exp: true
+  weight_bumping_targeted: true
+  weight_bumping_value: 0.0005
+
+

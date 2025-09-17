@@ -4,6 +4,7 @@ import os.path as osp
 import torch
 from torch.utils.data.dataset import Dataset
 import torchvision
+import sys
 
 
 class BarsDataset(Dataset):
@@ -203,9 +204,16 @@ class HicannMnist(Dataset):
 
 
 class YinYangDataset(Dataset):
-    def __init__(self, which='train', early=0.15, late=2.,
-                 r_small=0.1, r_big=0.5, size=1000, seed=42,
-                 multiply_input_layer=1):
+    def __init__(self, dataset_params):
+        which = dataset_params.get('which', 'train')
+        early = dataset_params.get('early', 0.15)
+        late = dataset_params.get('late', 2.)
+        r_small = dataset_params.get('r_small', 0.1)
+        r_big = dataset_params.get('r_big', 0.5)
+        size = dataset_params.get('size', 1000)
+        seed = dataset_params.get('seed', 42)
+        multiply_input_layer = dataset_params.get('multiply_input_layer', 1)
+
         assert type(multiply_input_layer) == int
         self.cs = []
         self.vals = []
@@ -263,3 +271,59 @@ class XOR(Dataset):
 
     def __len__(self):
         return len(self.cs)
+
+
+class Single_in_Single_out(Dataset):
+    def __init__(self, dataset_params):
+        input_mean = dataset_params.get("input_mean", 1.0)
+        input_std_dev = dataset_params.get("input_std_dev", 0.001)
+        self.num_samples = dataset_params.get("num_samples", 1)
+        self.vals = torch.normal(input_mean, input_std_dev, size = (self.num_samples, 1))
+
+    def __getitem__(self, index):
+        return self.vals[index], 0
+
+    def __len__(self):
+        return self.num_samples
+
+
+class Pattern(Dataset):
+    def __init__(self, dataset_params):
+        '''cs is a list of classes, vals is a list of values'''
+        self.cs = []
+        self.vals = []
+        # treatment of negative inputs happens below
+        for i, c in enumerate(dataset_params["classes"]):
+            n_samples = c.get('n_samples', 1)
+            self.cs.extend([torch.tensor(i) for _ in range(n_samples)])
+            if c.get('name', None) == 'pattern':
+                n_inputs = dataset_params['n_inputs']
+                pattern = c.get('pattern',[])
+                assert len(pattern) == n_inputs, f"Pattern {i} has wrong length"
+                self.vals.extend([torch.tensor(pattern)
+                                  + torch.normal(0.0, c.get('std_dev', 0.0), (n_inputs,))
+                                  for _ in range(n_samples)])
+            elif c.get('name', None) == 'noise':
+                if c.get('type',None) == 'uniform':
+                    low_bound = c.get('low_bound', 0)
+                    high_bound = c.get('high_bound', 1)
+                    assert low_bound <= high_bound, f"Class {i} has wrong bounds"
+                    assert low_bound >= 0, f"Class {i} has wrong bounds"
+                    self.vals.extend(torch.FloatTensor(n_samples, n_inputs).uniform_(low_bound, high_bound))
+                else:
+                    self.vals.extend(torch.normal(
+                        c.get('mean', 0.0), c.get('std', 1.0),
+                        (n_samples, n_inputs)))
+
+            else:
+                raise NotImplementedError(f"Class {i} type not implemented")
+                
+        # treating negative inputs with relu
+        self.vals = [torch.relu(v) for v in self.vals]
+
+    def __getitem__(self, index):
+        return self.vals[index], self.cs[index]
+
+    def __len__(self):
+        return len(self.cs)
+

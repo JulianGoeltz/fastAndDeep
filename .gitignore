@@ -9,6 +9,7 @@ __pycache__/
 data/
 experiment_results/
 experiment_pretrained/
+sweep_results/
 
 # concrete files
 Session.vim

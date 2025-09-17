@@ -1,0 +1,385 @@
+- param_groups:
+  - amsgrad: false
+    betas: &id001 !!python/tuple
+    - 0.9
+    - 0.999
+    capturable: false
+    decoupled_weight_decay: false
+    differentiable: false
+    eps: 1.0e-08
+    foreach: null
+    fused: null
+    initial_lr: 0.002
+    lr: 0.0009265824603195059
+    maximize: false
+    params: []
+    weight_decay: 0
+  - amsgrad: false
+    betas: *id001
+    capturable: false
+    decoupled_weight_decay: false
+    differentiable: false
+    eps: 1.0e-08
+    foreach: null
+    fused: null
+    initial_lr: 0.002
+    lr: 0.0009265824603195059
+    maximize: false
+    params: []
+    weight_decay: 0
+  - amsgrad: false
+    betas: *id001
+    capturable: false
+    decoupled_weight_decay: false
+    differentiable: false
+    eps: 1.0e-08
+    foreach: null
+    fused: null
+    initial_lr: 0.002
+    lr: 0.0009265824603195059
+    maximize: false
+    params:
+    - 0
+    weight_decay: 0
+  - amsgrad: false
+    betas: *id001
+    capturable: false
+    decoupled_weight_decay: false
+    differentiable: false
+    eps: 1.0e-08
+    foreach: null
+    fused: null
+    initial_lr: 0.002
+    lr: 0.0009265824603195059
+    maximize: false
+    params: []
+    weight_decay: 0
+  - amsgrad: false
+    betas: *id001
+    capturable: false
+    decoupled_weight_decay: false
+    differentiable: false
+    eps: 1.0e-08
+    foreach: null
+    fused: null
+    initial_lr: 0.002
+    lr: 0.0009265824603195059
+    maximize: false
+    params:
+    - 1
+    weight_decay: 0
+  state:
+    0:
+      exp_avg: !!python/object/apply:torch._utils._rebuild_tensor_v2
+      - !!python/object/apply:torch.storage._load_from_bytes
+        - !!binary |
+          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
+      - 0
+      - !!python/tuple
+        - 20
+        - 30
+      - !!python/tuple
+        - 30
+        - 1
+      - false
+      - !!python/object/apply:collections.OrderedDict
+        - []
+      exp_avg_sq: !!python/object/apply:torch._utils._rebuild_tensor_v2
+      - !!python/object/apply:torch.storage._load_from_bytes
+        - !!binary |
+          gAKKCmz8nEb5IGqoUBkugAJN6QMugAJ9cQAoWBAAAABwcm90b2NvbF92ZXJzaW9ucQFN6QNYDQAA
+          AGxpdHRsZV9lbmRpYW5xAohYCgAAAHR5cGVfc2l6ZXNxA31xBChYBQAAAHNob3J0cQVLAlgDAAAA
+          aW50cQZLBFgEAAAAbG9uZ3EHSwR1dS6AAihYBwAAAHN0b3JhZ2VxAGN0b3JjaApEb3VibGVTdG9y
+          YWdlCnEBWA4AAAA5NDE2MDEyMDEzOTUzNnECWAMAAABjcHVxA01YAk50cQRRLoACXXEAWA4AAAA5
+          NDE2MDEyMDEzOTUzNnEBYS5YAgAAAAAAAKGmRYVtRJw+1BLHQl1hKj6Sw4B4/H5uPtozUY96Lpg+
+          5KLV5U9oQT5W6r6Je9u3PkKZ1IRrKYo+xtZiJILNcD5EOcJV0qOVPjcjc0tpuZk+zwqWXwoNfT4d
+          TcneSYafPqNhI51IJis+drVHPuY8kz52qqO6poYoPuOpGK/07U0+gN+4P3YZlz5u8Rk7i4iTPhVn
+          mmx6CJM+qZy8fnNGpD714FAlnSqwPlcSD72pJ8A+j+5P2LSYQz4ffCfeZFY8Pj7g6ERjjLg+wZUN
+          uLvWNj4lfHmf18dXPuf933VIFZI+tJGXZ91ooj5OoII3J9pUPqGmRYVtRJw+1BLHQl1hKj6Sw4B4
+          /H5uPtozUY96Lpg+5KLV5U9oQT5W6r6Je9u3PkKZ1IRrKYo+xtZiJILNcD5EOcJV0qOVPjcjc0tp
+          uZk+zwqWXwoNfT4dTcneSYafPqNhI51IJis+drVHPuY8kz52qqO6poYoPuOpGK/07U0+gN+4P3YZ
+          lz5u8Rk7i4iTPhVnmmx6CJM+qZy8fnNGpD714FAlnSqwPlcSD72pJ8A+j+5P2LSYQz4ffCfeZFY8
+          Pj7g6ERjjLg+wZUNuLvWNj4lfHmf18dXPuf933VIFZI+tJGXZ91ooj5OoII3J9pUPqGmRYVtRJw+
+          1BLHQl1hKj6Sw4B4/H5uPtozUY96Lpg+5KLV5U9oQT5W6r6Je9u3PkKZ1IRrKYo+xtZiJILNcD5E
+          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
+      - 0
+      - !!python/tuple
+        - 20
+        - 30
+      - !!python/tuple
+        - 30
+        - 1
+      - false
+      - !!python/object/apply:collections.OrderedDict
+        - []
+      step: !!python/object/apply:torch._utils._rebuild_tensor_v2
+      - !!python/object/apply:torch.storage._load_from_bytes
+        - !!binary |
+          gAKKCmz8nEb5IGqoUBkugAJN6QMugAJ9cQAoWBAAAABwcm90b2NvbF92ZXJzaW9ucQFN6QNYDQAA
+          AGxpdHRsZV9lbmRpYW5xAohYCgAAAHR5cGVfc2l6ZXNxA31xBChYBQAAAHNob3J0cQVLAlgDAAAA
+          aW50cQZLBFgEAAAAbG9uZ3EHSwR1dS6AAihYBwAAAHN0b3JhZ2VxAGN0b3JjaApEb3VibGVTdG9y
+          YWdlCnEBWA4AAAA5NDE2MDEyMDEzOTg0MHECWAMAAABjcHVxA0sBTnRxBFEugAJdcQBYDgAAADk0
+          MTYwMTIwMTM5ODQwcQFhLgEAAAAAAAAAAAAAAMAa3kA=
+      - 0
+      - !!python/tuple []
+      - !!python/tuple []
+      - false
+      - !!python/object/apply:collections.OrderedDict
+        - []
+    1:
+      exp_avg: !!python/object/apply:torch._utils._rebuild_tensor_v2
+      - !!python/object/apply:torch.storage._load_from_bytes
+        - !!binary |
+          gAKKCmz8nEb5IGqoUBkugAJN6QMugAJ9cQAoWBAAAABwcm90b2NvbF92ZXJzaW9ucQFN6QNYDQAA
+          AGxpdHRsZV9lbmRpYW5xAohYCgAAAHR5cGVfc2l6ZXNxA31xBChYBQAAAHNob3J0cQVLAlgDAAAA
+          aW50cQZLBFgEAAAAbG9uZ3EHSwR1dS6AAihYBwAAAHN0b3JhZ2VxAGN0b3JjaApEb3VibGVTdG9y
+          YWdlCnEBWA4AAAA5NDE2MDExOTY2NDQ4MHECWAMAAABjcHVxA0taTnRxBFEugAJdcQBYDgAAADk0
+          MTYwMTE5NjY0NDgwcQFhLloAAAAAAAAAH+s82/7zTL8MSNtGKph9P/oiYhqJw+y+VPdj+qx6Tr8a
+          ZQhLyByAP1YXduq2RCy/eP3DHGXjVb8xTH76E3KAPzOguKxRYCm/7Ga00bVoVL/1vfsWUP56P9TQ
+          uMCrnwG/yf7BHR4EU7/XrkcXdGWAP3UgMweKgxa/KDGyZi17U7/wLECFMwZ6PxTo1/IQFta+Rp7H
+          eK/SSL/q8zvJ+J55P924dxzjAAm/vingg3p6Ur/XHnrjuNl+P28uiWbeGRA/KqjUVjiFSb8ccEaO
+          iDF5PyipvPGBKyy/zyWYRXHPUb8zAkMCLyB6P+I21e+wRvk+RIMvw0OJUr8tpCI7mVN8P3CbObOU
+          Khe/VnJpU5DySr83ebYBDx96P+/1cAbLJQS/E+yOUANeU7/6vXNx4GKAP+U1djo5xRi/Ei4wilJz
+          Ur+yp1j1ZwR8P9kxAQz6HRW/8i0RSvnPTb/VDOTKTC+AP5yzcZuXMC6/PblNxVMxUr9qoZqnGTWA
+          P4guG9MTUSe/B3kXMtptS78At35ZZLd5PzpuYiKA5hm/hGdfyShLSr9beNyCdQN8P0d78MiI/S6/
+          D84HEdpWUr87fjEAeC58PzbLWcSXhxW/kNfDtV3hUb/UB+EDbDh8P1UTDpChIBS/hkk9mofmUL85
+          ju8xGLR5P2EJlAF1/BO/cogmDQjoQb+xmNuyigF4P44TOr+eKBQ/3R/igmtQT782zeWFZyuAP/HZ
+          pcfW0Sq/H+iPqiCEU7+0Trb7uEmAPx6XTyxZzyK/qrWgh9yxS7/FiMz8+dZ7Pzdgn46ksD+/48Z+
+          FbvITb/Ljm3IpBiAPwfRzMeGXSq/p1OurCP5Rr/4YI5alHZ+Py0+HDnKRjO/r5KrpzAJUb8Z2X0v
+          O2J8PyasALJlhBI/Szy7vj8kUr++24sKPTl7P4QK1EsVnBa/YvvlxGMDVr9/MF3MVch+PwM3ZqK0
+          EhS/
+      - 0
+      - !!python/tuple
+        - 30
+        - 3
+      - !!python/tuple
+        - 3
+        - 1
+      - false
+      - !!python/object/apply:collections.OrderedDict
+        - []
+      exp_avg_sq: !!python/object/apply:torch._utils._rebuild_tensor_v2
+      - !!python/object/apply:torch.storage._load_from_bytes
+        - !!binary |
+          gAKKCmz8nEb5IGqoUBkugAJN6QMugAJ9cQAoWBAAAABwcm90b2NvbF92ZXJzaW9ucQFN6QNYDQAA
+          AGxpdHRsZV9lbmRpYW5xAohYCgAAAHR5cGVfc2l6ZXNxA31xBChYBQAAAHNob3J0cQVLAlgDAAAA
+          aW50cQZLBFgEAAAAbG9uZ3EHSwR1dS6AAihYBwAAAHN0b3JhZ2VxAGN0b3JjaApEb3VibGVTdG9y
+          YWdlCnEBWA4AAAA5NDE2MDEyMDA1MzYwMHECWAMAAABjcHVxA0taTnRxBFEugAJdcQBYDgAAADk0
+          MTYwMTIwMDUzNjAwcQFhLloAAAAAAAAA2UzgDrd1CT9lc8p73ToiP3zXCujD/eA+KxWo/cVZCT8R
+          dLmwfPQlP/zBzyFb4eQ+Qb14lpJCET8pVHkYLZUlP3EyGoNQ+Oc+Ir1cB52SBD8/cTavMdcfP2Nn
+          V/HYV94+/4buGii7DT+jVLaLfn0mPys3pgNpAOY+A+4sB3wnBT/tP64PvEseP4jKvJaGh90+d7gF
+          hxFfDD/gMSrS8bsdP+o78/uXu+A+HA/JLXoz/T7TF51lcAwjP0aRkr5YPds+6jXI87ScAT8X715r
+          1fQZP4mbo1mfq9c+3j3/9ctqAT9rFg/owcgcPymqJbdZ0dk+17pBhub1Dz+giqYJTvQgP+XCtzWt
+          zuM+KJ8L6CJQDD+jAFbUHokeP9R1f+vo5+A+6VQi7BPzDT9uwRuRj3QmP0fpuyrSDeY+VlzLNsnH
+          Dz8cn/+3d7sgP6D6Me9wouM+f8l9LE01DD/svwb0cTUmP8OkgczzH+Y+0PTo6jscDD8D3UcJWTIm
+          P2yOevBQZOU+8mCrsBTXAT+tPLRgiKsbP9AagkNOoNc+AwvRMB7c+z4fTlceRusdP5M30Bp+bNE+
+          Bs/Yn9GtDz9qBWxvn70gP4L3AkALiuM+QYxk2ONKDz8zcniWoQEhP/MXtGx2NuM+xSnseLtUAT+F
+          ixjdMWIbP+aOV3eSs9g+w7BhOuT2CD8zcRmiZ3AXP3/+8eDIONs+Iof/oh1NCT/HrKPjKhcmPwWp
+          uh8AxuQ+yMoFB+aWDT8iAQZNAksmPx3tauKQ5eU+ruzQ/gAm+z5J1doaIwIdP+vKuDzCnNA+Ath1
+          bHJFCT8jqQOwbPElPwdazBED4uQ+/8fwEw6/AD/oQRcHvFYhP5dTcDOvudg+3Yh1dSuIAD9i31qs
+          1mQgPwSK4RDYb9s+GmUbGAEtED8qj0HUoFMcP8sx44u/1eI+kXUpFoG9ED+InItkakojP15xlqlM
+          puU+
+      - 0
+      - !!python/tuple
+        - 30
+        - 3
+      - !!python/tuple
+        - 3
+        - 1
+      - false
+      - !!python/object/apply:collections.OrderedDict
+        - []
+      step: !!python/object/apply:torch._utils._rebuild_tensor_v2
+      - !!python/object/apply:torch.storage._load_from_bytes
+        - !!binary |
+          gAKKCmz8nEb5IGqoUBkugAJN6QMugAJ9cQAoWBAAAABwcm90b2NvbF92ZXJzaW9ucQFN6QNYDQAA
+          AGxpdHRsZV9lbmRpYW5xAohYCgAAAHR5cGVfc2l6ZXNxA31xBChYBQAAAHNob3J0cQVLAlgDAAAA
+          aW50cQZLBFgEAAAAbG9uZ3EHSwR1dS6AAihYBwAAAHN0b3JhZ2VxAGN0b3JjaApEb3VibGVTdG9y
+          YWdlCnEBWA4AAAA5NDE2MDExMjIzNjkxMnECWAMAAABjcHVxA0sBTnRxBFEugAJdcQBYDgAAADk0
+          MTYwMTEyMjM2OTEycQFhLgEAAAAAAAAAAAAAAMAa3kA=
+      - 0
+      - !!python/tuple []
+      - !!python/tuple []
+      - false
+      - !!python/object/apply:collections.OrderedDict
+        - []
+- _get_lr_called_within_step: false
+  _is_initial: false
+  _last_lr:
+  - 0.0009265824603195059
+  - 0.0009265824603195059
+  - 0.0009265824603195059
+  - 0.0009265824603195059
+  - 0.0009265824603195059
+  _step_count: 301
+  base_lrs:
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  gamma: 0.95
+  last_epoch: 300
+  step_size: 20

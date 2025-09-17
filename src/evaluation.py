@@ -23,7 +23,7 @@ def run_inference(dirname, filename, datatype, dataset, untrained, reference, de
         basename = filename
     _, neuron_params, network_layout, training_params = training.load_config(osp.join(dirname, "config.yaml"))
     criterion = utils.GetLoss(training_params,
-                              network_layout['layer_sizes'][-1],
+                              network_layout['layers'][-1]['size'],
                               neuron_params['tau_syn'], device)
 
     saved_spikes_exist = os.path.exists(dirname + '/' + filename + '_{}_spiketimes.npy'.format(datatype))
@@ -45,10 +45,10 @@ def run_inference(dirname, filename, datatype, dataset, untrained, reference, de
 
     # print(training_params)
     if not reference:
-        if training_params['use_hicannx'] and \
+        if training_params['substrate'] != 'sim' and \
            os.environ.get('SLURM_HARDWARE_LICENSES') is None:
             print("#### to evaluate epochs on HX, execute on hardware (with 'srun --partition cube --wafer ...')")
-            return (None, ) * (2 if not return_all else 4)
+            return (None, ) * (2 if not return_hidden else 5)
     if wholeset:
         batch_size = len(dataset)
     else:
@@ -77,9 +77,6 @@ def run_inference(dirname, filename, datatype, dataset, untrained, reference, de
             print(layer.sim_params['steps'])
             layer.sim_params['decay_syn'] = float(np.exp(-training_params['resolution'] / neuron_params['tau_syn']))
             layer.sim_params['decay_mem'] = float(np.exp(-training_params['resolution'] / neuron_params['tau_mem']))
-    # might use different device for analysis than training
-    for i, bias in enumerate(net.biases):
-        net.biases[i] = utils.to_device(bias, device)
     for layer in net.layers:
         layer.device = device
 
@@ -99,13 +96,13 @@ def run_inference(dirname, filename, datatype, dataset, untrained, reference, de
             all_outputs.append(outputs)
             all_labels.append(labels)
             all_inputs.append(inputs)
-            all_hiddens.append(hiddens)
+            all_hiddens.append([sublist for sublist in hiddens if len(sublist) > 0])
             if 'mnist' in filename:
                 print(f"\rinference ongoing, at {i} of {len(loader)} batches", end='')
-        outputs = torch.stack([item for sublist in all_outputs for item in sublist])
-        labels = np.array([item.item() for sublist in all_labels for item in sublist])
-        inputs = torch.stack([item for sublist in all_inputs for item in sublist])
-        hiddens = torch.stack([item for sublist in all_hiddens for item in sublist[0]])
+        outputs = torch.vstack(all_outputs)
+        labels = torch.hstack(all_labels)
+        inputs = torch.vstack(all_inputs)
+        hiddens = torch.hstack([torch.stack(sublist) for sublist in all_hiddens])
         selected_classes = criterion.select_classes(outputs)
 
     print()
@@ -219,7 +216,7 @@ def sorted_outputs(datatype, dataset, dirname='tmp', filename='', untrained=Fals
     for pattern in range(len(outputs)):
         true_label = labels[pattern]
         outputs_sorted[true_label].append(np.array(outputs[pattern].detach().cpu()))
-    fig, axes = plt.subplots(num_labels, 1, sharex=True, figsize=(10, 10))
+    fig, axes = plt.subplots(num_labels, 1, sharex=True, sharey=True, figsize=(10, 10))
     if untrained:
         fig.suptitle('Output times for each class: {} dataset UNTRAINED'.format(datatype))
     else:
@@ -241,7 +238,7 @@ def sorted_outputs(datatype, dataset, dirname='tmp', filename='', untrained=Fals
             ys = to_plot[:, j]
             axes[i].plot(xs, ys, label='neuron {}'.format(j), alpha=alpha)
             axes[i].legend()
-            axes[i].set_ylim(0.2, 3.5)
+            # axes[i].set_ylim(0.2, 3.5)
             axes[i].set_xlabel('example (sorted by earliest spiketime)')
             axes[i].set_ylabel('spiketime')
     if untrained:
@@ -273,7 +270,7 @@ def sorted_outputs(datatype, dataset, dirname='tmp', filename='', untrained=Fals
             ys = to_plot[:, j][indices]
             axes[i].plot(xs, ys, label='neuron {}'.format(j), alpha=alpha)
             axes[i].legend()
-            axes[i].set_ylim(0.2, 3.5)
+            # axes[i].set_ylim(0.2, 3.5)
             axes[i].set_xlabel('example (sorted by correct spiketime)')
             axes[i].set_ylabel('spiketime')
     if untrained:
@@ -288,26 +285,50 @@ def sorted_outputs(datatype, dataset, dirname='tmp', filename='', untrained=Fals
 
 
 def loss_accuracy(title, dirname='tmp', filename='', show=False, reference=False):
+    _, neuron_params, network_layout, training_params = training.load_config(osp.join(dirname, "config.yaml"))
+
     train_losses = training.load_data(dirname, filename, '_train_losses.npy')
     train_accuracy = training.load_data(dirname, filename, '_train_accuracies.npy')
     val_losses = training.load_data(dirname, filename, '_val_losses.npy')
     val_accuracy = training.load_data(dirname, filename, '_val_accuracies.npy')
-    fig, axes = plt.subplots(3, 1, sharex=True, gridspec_kw={'height_ratios': [2, 2, 1]})  # figsize=(12,12))
+    fig, axes = plt.subplots(3, 1,
+                             sharex=True,
+                             gridspec_kw={'height_ratios': [1, 2, 1]},
+                             figsize=(8, 8))
     fig.suptitle(title)
 
-    axes[0].plot(train_accuracy, label=f"training (final {train_accuracy[-1]})")
-    axes[0].plot(val_accuracy, label=f"validation (final {val_accuracy[-1]})")
-    axes[0].legend()
-    axes[0].set_ylabel("accuracy")
-    axes[0].set_ylim(-0.1, 1.1)
+    # ### accuracy
+    # axes[0].plot(train_accuracy, label=f"training (final {train_accuracy[-1]})")
+    # axes[0].plot(val_accuracy, label=f"validation (final {val_accuracy[-1]})")
+    # axes[0].legend()
+    # axes[0].set_ylabel("accuracy")
+    # axes[0].set_ylim(-0.1, 1.1)
     # ax_2 = axes[0].twinx()
+
+    # ### error
     axes[1].axhline(0.01, color="grey", alpha=0.3)
     axes[1].axhline(0.05, color="grey", alpha=0.3)
     axes[1].plot(range(1, len(train_losses) + 1), 1 - train_accuracy, color="C0", label="training")
     axes[1].plot(1 - val_accuracy, color="C1", label="validation")
     axes[1].set_ylabel('error')
     axes[1].set_yscale('log')
+    axes[1].legend()
 
+    # ### bumping
+    ax = axes[0]
+    weight_bumping_steps = training.load_data(dirname, filename, '_weight_bumping_steps.npy').astype(float)
+    maxval = weight_bumping_steps.max()
+    weight_bumping_steps[weight_bumping_steps == -1] = maxval + 1
+    weight_bumping_steps[weight_bumping_steps == -2] = -1
+    xs = np.linspace(0, len(train_losses), len(weight_bumping_steps))
+    ax.scatter(xs, weight_bumping_steps,
+               alpha=0.05, color='black', s=0.1)
+    ax.set_ylim([-1.4, maxval + 1.4])
+    ax.set_yticks([-1, 0, maxval, maxval + 1])
+    ax.set_yticklabels(['none', 0, maxval, 'label'])
+    ax.set_ylabel('weight bumps')
+
+    # ### loss
     axes[2].plot(train_losses, label='training set')
     axes[2].plot(val_losses, label='validation set')
     # print(train_losses)
@@ -324,6 +345,7 @@ def loss_accuracy(title, dirname='tmp', filename='', show=False, reference=False
         fig.tight_layout()
 
     path = dirname + '/' + filename + '_loss_accuracy.png'
+    fig.tight_layout()
     fig.savefig(path)
     if show:
         plt.show()
@@ -334,7 +356,7 @@ def weight_histograms(dirname='tmp', filename='', show=False, device=None):
     if device is None:
         device = torch.device('cpu')
     net = utils.network_load(dirname, filename, device)
-    if net.use_hicannx and hasattr(net, '_ManagedConnection'):
+    if hasattr(net, '_ManagedConnection'):
         net._ManagedConnection.__exit__()
     if osp.isfile(dirname + "/" + filename + '_untrained_network.pt'):
         net_untrained = utils.network_load(dirname, filename + '_untrained', device)
@@ -346,19 +368,25 @@ def weight_histograms(dirname='tmp', filename='', show=False, device=None):
         print("*" * 30)
         return
     # this can not run inference on hicannx currently
-    num_layers = len(net.layers)
+    num_layers = len([lay for lay in net.layers if isinstance(lay, utils.NeuronLayer)])
     fig, axes = plt.subplots(num_layers, 1, sharex=True, figsize=(10, 10))
     fig.suptitle('Weight histograms after training')
-    for i in range(num_layers):
+    index_ax = 0
+    for i in range(len(net.layers)):
+        if not isinstance(net.layers[i], utils.NeuronLayer):
+            continue
+        # TODO: maybe change weights to params like
+        # next(net.layers[i].parameters()).data
         weights = net.layers[i].weights.data.detach().cpu().numpy()
         weights_untrained = net_untrained.layers[i].weights.data.detach().cpu().numpy()
-        axes[i].xaxis.set_tick_params(which='both', labelbottom=True)
-        axes[i].hist(weights_untrained.flatten(), density=True, rwidth=0.9, label='initial',
-                     alpha=0.4, color='C1')
-        axes[i].hist(weights.flatten(), density=True, rwidth=0.9, label='layer {0}'.format(i),
-                     alpha=0.7, color='C0')
-        axes[i].legend()
-        axes[i].set_xlabel('weights')
+        axes[index_ax].xaxis.set_tick_params(which='both', labelbottom=True)
+        axes[index_ax].hist(weights_untrained.flatten(), density=True, rwidth=0.9, label='initial',
+                            alpha=0.4, color='C1')
+        axes[index_ax].hist(weights.flatten(), density=True, rwidth=0.9, label='layer {0}'.format(i),
+                            alpha=0.7, color='C0')
+        axes[index_ax].legend()
+        axes[index_ax].set_xlabel('weights')
+        index_ax += 1
     path = dirname + '/' + filename + '_weight_hist.png'
     plt.savefig(path)
     if show:
@@ -372,18 +400,20 @@ def weight_matrix(dirname='tmp', filename='', device=None):
         device = torch.device('cpu')
     net = utils.network_load(dirname, filename, device)
     # this can not run inference on hicannx currently
-    num_layers = len(net.layers)
-    for i in range(num_layers):
+    num_layers = len([lay for lay in net.layers if isinstance(lay, utils.NeuronLayer)])
+    for i in range(len(net.layers)):
+        if not isinstance(net.layers[i], utils.NeuronLayer):
+            continue
         fig, axes = plt.subplots(1, 1, figsize=(10, 10))
         fig.suptitle('Weight matrix after training: layer {0}'.format(i))
         weights = net.layers[i].weights.data.detach().cpu().numpy()
-        print(weights.shape)
+        # print(weights.shape)
         color_map = axes.imshow(weights, aspect='auto', origin='lower')
         color_map.set_cmap("RdBu")
         fig.colorbar(color_map)
         path = dirname + '/' + filename + '_weight_matrix_layer_{0}.png'.format(i)
         plt.savefig(path)
-    plt.close(fig)
+        plt.close(fig)
     return
 
 
@@ -444,7 +474,7 @@ def yin_yang_spiketimes(datatype, dataset, dirname='tmp', filename='', reference
     outputs = outputs.detach().cpu().numpy()
     reduced_inputs = np.array([[item[0], item[1]] for item in inputs])
     cm = plt.cm.get_cmap('RdYlBu')
-    norm = plt.Normalize(0., 3.)
+    norm = plt.Normalize()  # 1., 5.)
     fig, axes = plt.subplots(nrows=1, ncols=4, gridspec_kw={"width_ratios": [1, 1, 1, 0.05]}, figsize=(20, 7))
     plt.suptitle('Spiketimes per label neuron for {} set'.format(datatype))
     sc = axes[0].scatter(reduced_inputs[:, 0], reduced_inputs[:, 1], c=outputs[:, 0], cmap=cm, marker='o',
@@ -494,12 +524,14 @@ def yin_yang_spiketime_diffs(datatype, dataset, dirname='tmp', filename='', refe
     output_diffs = np.array(output_diffs)
     reduced_inputs = np.array([[item[0], item[1]] for item in inputs])
     cm = plt.cm.get_cmap('RdYlBu')
-    norm = plt.Normalize(0., 2.1)
+    norm = plt.Normalize()  # 1., 5.)
     fig, axes = plt.subplots(nrows=1, ncols=7, figsize=(22, 5.5),
                              gridspec_kw={"width_ratios": [0.98, 0.05, 0.04, 0.98, 0.98, 0.98, 0.05]})
     plt.suptitle('Spiketimes - earliest spike per label neuron for {} set'.format(datatype))
     sc = axes[0].scatter(reduced_inputs[:, 0], reduced_inputs[:, 1], c=firsts, cmap=cm, marker='o',
-                         s=150, edgecolor='black', alpha=0.7, norm=norm)
+                         s=150, edgecolor='black', alpha=0.7,
+                         # norm=norm,
+                         )
     axes[0].set_aspect('equal', adjustable='box')
     axes[0].set_xlabel('input time 1')
     axes[0].set_ylabel('input time 2')
@@ -509,18 +541,24 @@ def yin_yang_spiketime_diffs(datatype, dataset, dirname='tmp', filename='', refe
     axes[2].axis('off')
     cm = plt.cm.get_cmap('RdYlBu')
     sc = axes[3].scatter(reduced_inputs[:, 0], reduced_inputs[:, 1], c=output_diffs[:, 0], cmap=cm, marker='o',
-                         s=150, edgecolor='black', alpha=0.7, norm=norm)
+                         s=150, edgecolor='black', alpha=0.7,
+                         # norm=norm,
+                         )
     axes[3].set_aspect('equal', adjustable='box')
     axes[3].set_xlabel('input time 1')
     axes[3].set_ylabel('input time 2')
     axes[3].set_title('Neuron 0')
     sc = axes[4].scatter(reduced_inputs[:, 0], reduced_inputs[:, 1], c=output_diffs[:, 1], cmap=cm, marker='o',
-                         s=150, edgecolor='black', alpha=0.7, norm=norm)
+                         s=150, edgecolor='black', alpha=0.7,
+                         # norm=norm,
+                         )
     axes[4].set_aspect('equal', adjustable='box')
     axes[4].set_xlabel('input time 1')
     axes[4].set_title('Neuron 1')
     sc = axes[5].scatter(reduced_inputs[:, 0], reduced_inputs[:, 1], c=output_diffs[:, 2], cmap=cm, marker='o',
-                         s=150, edgecolor='black', alpha=0.7, norm=norm)
+                         s=150, edgecolor='black', alpha=0.7,
+                         # norm=norm,
+                         )
     axes[5].set_aspect('equal', adjustable='box')
     axes[5].set_xlabel('input time 1')
     axes[5].set_title('Neuron 2')
@@ -548,16 +586,16 @@ def yin_yang_hiddentimes(datatype, dataset, dirname='tmp', filename='', referenc
     hiddens = hiddens.detach().cpu().numpy()
     reduced_inputs = np.array([[item[0], item[1]] for item in inputs])
     cm = plt.cm.get_cmap('RdYlBu')
-    norm = plt.Normalize(0., 3.)
-    gridsize = 6
+    norm = plt.Normalize()  # 1., 5.)
+    gridsize = min(6, int(np.ceil(np.sqrt(hiddens.shape[-1]))))
     fig, axes = plt.subplots(nrows=gridsize, ncols=gridsize, figsize=(22, 18))
     plt.suptitle('Spiketimes per hidden neuron for {} set'.format(datatype))
     for i in range(gridsize):
         for j in range(gridsize):
             k = i * gridsize + j
-            if k >= hiddens.shape[1] or np.all(np.isinf(hiddens[:, k])):
+            if k >= hiddens.shape[2] or np.all(np.isinf(hiddens[0, :, k])):
                 continue
-            sc = axes[i, j].scatter(reduced_inputs[:, 0], reduced_inputs[:, 1], c=hiddens[:, k], cmap=cm, marker='o',
+            sc = axes[i, j].scatter(reduced_inputs[:, 0], reduced_inputs[:, 1], c=hiddens[0, :, k], cmap=cm, marker='o',
                                     s=100, edgecolor='black', alpha=0.7, norm=norm)
             axes[i, j].set_xlim(0, 2.1)
             axes[i, j].set_ylim(0, 2.1)
@@ -567,6 +605,7 @@ def yin_yang_hiddentimes(datatype, dataset, dirname='tmp', filename='', referenc
             if j == 0:
                 axes[i, j].set_ylabel('input time 2')
             axes[i, j].set_title('Hidden neuron {0}'.format(k))
+            plot_yyshape(axes[i, j])
     if untrained:
         path = dirname + '/' + filename + '_hiddentimes_{}_UNTRAINED.png'.format(datatype)
     else:
@@ -579,6 +618,44 @@ def yin_yang_hiddentimes(datatype, dataset, dirname='tmp', filename='', referenc
     plt.close(fig)
 
 
+def monitored_plot(title, dirname='tmp', filename='', show=False, reference=False, device=None, net=None):
+    parameters = training.load_data(dirname, filename, '_parameters_training.npy').item()
+    for k, val in parameters.items():
+        v = val['params']
+        if len(v.shape) == 2 or v.shape[1] == 1 or v.shape[2] == 1:
+            fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+            ax.plot(v.reshape(v.shape[0], -1))
+            ax.set_xlabel("epochs [1]")
+            ax.set_ylabel("values [?]")
+            ax.set_title(f"Layer {k} : {val['name']} has shape {v.shape[1:]}")
+        elif v.shape[1] <= 10:
+            fig, axes = plt.subplots(v.shape[1], 1, figsize=(12, 12),
+                                     sharex=True, sharey=True)
+            for i, ax in enumerate(axes):
+                ax.plot(v[:, i, :])
+                ax.set_ylabel("values [?]")
+            axes[-1].set_xlabel("epochs [1]")
+            axes[0].set_title(f"Layer {k} : {val['name']} has shape {v.shape[1:]}")
+        elif v.shape[2] <= 10:
+            fig, axes = plt.subplots(v.shape[2], 1, figsize=(12, 12),
+                                     sharex=True, sharey=True)
+            for i, ax in enumerate(axes):
+                ax.plot(v[:, :, i])
+                ax.set_ylabel("values [?]")
+            axes[-1].set_xlabel("epochs [1]")
+            axes[0].set_title(f"Layer {k} : {val['name']} has shape {v.shape[1:]}")
+
+        else:
+            fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+            ax.plot(v.reshape(v.shape[0], -1))
+            ax.set_xlabel("epochs [1]")
+            ax.set_ylabel("values [?]")
+            ax.set_title(f"Layer {k} : {val['name']} has shape {v.shape[1:]}")
+        path = dirname + '/' + filename + f'_monitor{k}_plot.png'
+        fig.tight_layout()
+        fig.savefig(path)
+
+
 def summary_plot(title, dirname='tmp', filename='', show=False, reference=False, device=None, net=None):
     if device is None:
         device = torch.device('cpu')
@@ -589,14 +666,12 @@ def summary_plot(title, dirname='tmp', filename='', show=False, reference=False,
     train_accuracy = training.load_data(dirname, filename, '_train_accuracies.npy')
     val_losses = training.load_data(dirname, filename, '_val_losses.npy')
     val_accuracy = training.load_data(dirname, filename, '_val_accuracies.npy')
-    val_labels = training.load_data(dirname, filename, '_val_labels.npy')
-    weights = training.load_data(dirname, filename, '_label_weights_training.npy')
-    val_outputs_sorted = training.load_data(dirname, filename, '_mean_val_outputs_sorted.npy')
-    std_outputs_sorted = training.load_data(dirname, filename, '_std_val_outputs_sorted.npy')
-    num_labels = len(np.unique(val_labels))
+    mean_val_outputs_sorted = training.load_data(dirname, filename, '_mean_val_outputs_sorted.npy')
+    std_val_outputs_sorted = training.load_data(dirname, filename, '_std_val_outputs_sorted.npy')
+    num_labels = mean_val_outputs_sorted.shape[0]
 
     fig = plt.figure(figsize=(12, 12))
-    gs_main = mpl_gs.GridSpec(1, 3,
+    gs_main = mpl_gs.GridSpec(1, 2,
                               # wspace=0.1
                               )
 
@@ -626,39 +701,18 @@ def summary_plot(title, dirname='tmp', filename='', show=False, reference=False,
     ax.set_yscale('log')
     ax.set_xlabel('epoch')
 
-    gs_centre = mpl_gs.GridSpecFromSubplotSpec(num_labels, 1, gs_main[0, 1],
-                                               hspace=hspace)
-    for i in range(num_labels):
-        ax = fig.add_subplot(gs_centre[i, 0])
-        if reference:
-            to_plot = weights[:, i, :]
-            for j in range(weights.shape[2]):
-                ax.plot(to_plot[:, j], label='hidden {}'.format(j))
-        else:
-            to_plot = weights[:, :, i]
-            for j in range(weights.shape[1]):
-                ax.plot(to_plot[:, j], label='hidden {}'.format(j))
-        if i == 0:
-            ax.set_title("weights to {} outputs".format(num_labels))
-        if i == num_labels - 1:
-            ax.set_xlabel('epoch')
-
-        if net.rounding:
-            ax.axhline(0, color="black")
-            ax.axhline(net.rounding_precision, color="black")
-
-        if 'clip_weights_max' in net.sim_params:
-            ax.axhline(net.sim_params['clip_weights_max'], color="black")
-            ax.axhline(-net.sim_params['clip_weights_max'], color="black")
-
-    gs_right = mpl_gs.GridSpecFromSubplotSpec(num_labels, 1, gs_main[0, 2],
+    gs_right = mpl_gs.GridSpecFromSubplotSpec(num_labels, 1, gs_main[0, 1],
                                               hspace=hspace)
+    all_axes = []
     for i in range(num_labels):
         ax = fig.add_subplot(gs_right[i, 0])
+        if len(all_axes) > 0:
+            ax.sharey(all_axes[-1])
+        all_axes.append(ax)
         for j in range(num_labels):
-            xs = np.arange(len(val_outputs_sorted[i][:, j]))
-            ys = val_outputs_sorted[i][:, j]
-            stds = std_outputs_sorted[i][:, j]
+            xs = np.arange(len(mean_val_outputs_sorted[i][:, j]))
+            ys = mean_val_outputs_sorted[i][:, j]
+            stds = std_val_outputs_sorted[i][:, j]
             ax.plot(xs, ys, label='neuron {}'.format(j))
             ax.fill_between(xs, ys - stds, ys + stds, alpha=0.4)
         # if i == 0:
@@ -669,6 +723,7 @@ def summary_plot(title, dirname='tmp', filename='', show=False, reference=False,
             ax.set_title('output times for {} patterns'.format(num_labels))
         if i == num_labels - 1:
             ax.set_xlabel('epoch')
+    ax.autoscale()
 
     fig.tight_layout()
     path = dirname + '/' + filename + '_summary_plot.png'
@@ -803,7 +858,7 @@ def compare_voltages(dirname, filename, dataset, device=None, return_all=False, 
     if device is None:
         device = torch.device('cpu')
     _, neuron_params, network_layout, training_params = training.load_config(osp.join(dirname, "config.yaml"))
-    assert not training_params.get('use_hicannx', False), "for now only do software membranes"
+    assert training_params.get('substrate', 'sim') != 'sim', "for now only do software membranes"
     assert net is None, "with loaded network we need to take care -> done later"
     loader = torch.utils.data.DataLoader(dataset, shuffle=False,
                                          batch_size=training_params.get('batch_size_eval', len(dataset)))

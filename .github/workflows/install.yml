@@ -2,7 +2,11 @@ name: Install software and test runs
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
   schedule:
     - cron: "0 0 1 * *"
 
@@ -33,16 +37,15 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: adapt experiment for short runtime
         run: |
-          sed -i 's/epoch_number: 300/epoch_number: 5/' experiment_configs/yin_yang.yaml
-          sed -i 's/epoch_snapshots: \[[^]]*\]/epoch_snapshots: \[1 \]/' experiment_configs/yin_yang.yaml
+          sed -i 's/epoch_number: 300/epoch_number: 5/' experiment_configs/yin_yang_H30_WA.yaml
       - name: run test training
         run: |
           . venv/bin/activate
           cd src
-          python experiment.py train ../experiment_configs/yin_yang.yaml
+          python experiment.py train ../experiment_configs/yin_yang_H30_WA.yaml
       - name: run test inference
         run: |
           . venv/bin/activate
           cd src
-          python experiment.py inference ../experiment_pretrained/yinyang_et_300epochs/ | tee tmp.log
-          grep 'After inference, the accuracy is 96.00%.' tmp.log
+          python experiment.py inference ../experiment_pretrained/yin_yang_H30_WA 300 | tee tmp.log
+          grep 'After inference, the accuracy is 97.50%.' tmp.log

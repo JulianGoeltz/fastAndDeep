@@ -1,43 +1,57 @@
-dataset: 16x16_mnist
-neuron_params:
+dataset_params:
+  name : 16x16_mnist
+  early: 0.15
+  late: 2.
+default_neuron_params:
   g_leak: 1.0
   leak: 0.0
   tau_syn: 1.0
+  tau_mem: 1.0
   threshold: 1.0
+  max_dw_norm: 0.2
 network_layout:
-  bias_times: []
-  layer_sizes: [128, 10]
-  n_biases: [0, 0]
+  layers:
+    - name: BroadcastLayer
+    - name: NeuronLayer
+      size: 128
+      weights_mean: 1.5
+      weights_std: 0.8
+      max_num_missing_spikes: 0.
+      trainable: true
+      monitor: true
+    - name: Biases
+      times: [0, ]
+    - name: BroadcastLayer
+    - name: NeuronLayer
+      learning_rate: 0.001
+      size: 10
+      weights_mean: 0.5
+      weights_std: 0.8
+      max_num_missing_spikes: 0.
+      trainable: true
+      monitor: true
   n_inputs: 256
-  n_layers: 2
-  weight_means: [0.1, 0.6]
-  weight_stdevs: [0.4, 0.8]
 training_params:
   batch_size: 50
   batch_size_eval: 50
-  enforce_cpu: false
+  enforce_cpu: False
   epoch_number: 200
-  epoch_snapshots: [1, ]
+  epoch_snapshots: [100, 200]
   learning_rate: 0.003
   loss:
-    type: MSE
-    t_correct: 1.7
-    t_wrong: 1.0
-    # t_correct: 1.0
-    # t_wrong: 2.0
+    type: shift_invariant_MSE
+    delta_t: 0.7
   lr_scheduler: {gamma: 0.9, step_size: 10, type: StepLR}
-  max_dw_norm: 0.2
-  max_num_missing_spikes: [0.5, 0.5]
   momentum: 0
   numpy_seed: 12345
   optimizer: adam
   print_step_percent: 5.0
   resolution: 0.01
-  sim_time: 3.0
-  torch_seed: 2345
+  sim_time: 4.0
+  substrate: sim
+  torch_seed: 2000
   training_noise: {mean: 0.0, std_dev: 0.3}
   use_forward_integrator: false
-  use_hicannx: false
   weight_bumping_exp: true
   weight_bumping_targeted: true
   weight_bumping_value: 0.0005

@@ -1,7 +1,8 @@
-numpy==1.23.5
-numba==0.56.4
-torch==1.13.1
-torchvision==0.14.1
-matplotlib==3.1.1 
-pyyaml==6.0.1
-scipy==1.10.0
+matplotlib==3.10.6
+numba==0.61.2
+numpy==2.2.6
+pandas==2.3.2
+PyYAML==6.0.2
+scipy==1.16.2
+torch==2.8.0
+torchvision==0.23.0

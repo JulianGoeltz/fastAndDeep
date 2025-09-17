@@ -1,0 +1,16 @@
+W66F3:
+  _created_from_default: true
+  calibration: calibrations/W66F3__adaptationDelays-adapted.pbin
+  intrinsic_timescale: 0.001
+  neuron_params:
+    g_leak: 1.0
+    leak: 0.0
+    tau_mem: 1.0
+    tau_syn: 1.0
+    threshold: 2.6
+  retries: 5
+  scale_times: 0.006
+  scale_weights: 30
+  single_simtime: 30.0
+  synapse_bias: 1000
+  taum: 6.0

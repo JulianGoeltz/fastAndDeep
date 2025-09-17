@@ -1,0 +1,76 @@
+dataset_params:
+  name: 'pattern'
+  classes:
+    - name: pattern
+      pattern: [0, 2, 4, 6, 8]
+      std_dev: 0.001
+      n_samples: 3
+    - name: pattern
+      pattern: [9, 7, 5, 3, 1]
+      std_dev: 0.001
+      n_samples: 3
+    - name: noise
+      type: uniform
+      n_samples: 3
+    - name: noise
+      type: normal
+      std_dev: 0.01
+      mean: 1.0
+      n_samples: 3
+
+default_neuron_params:
+  g_leak: 1.0
+  leak: 0.0
+  tau_syn: 1.0
+  threshold: 1.0
+  tau_mem: 1.0
+  max_dw_norm: 1000.2
+network_layout:
+  layers:
+    - name: Biases
+      times: [0, ]
+    - name: 'DelaySynaptic'
+      delay_mean: 1.0
+      delay_std: 0.5
+      trainable: true
+      monitor: true
+    - name: 'NeuronLayer'
+      size: 4
+      weights_mean: 3.5
+      weights_std: 0.8
+      biases: []
+      max_num_missing_spikes: 0.0
+      trainable: true
+      monitor: true
+  n_inputs: 4
+
+training_params:
+  batch_size: 150
+  batch_size_eval: 200
+  enforce_cpu: False
+  epoch_number: 500
+  epoch_snapshots: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+  learning_rate: 0.5
+  loss:
+#    type: TTFS
+#    alpha: 0.005
+#    beta: 3.
+#    xi: 0.2
+     type: MSE
+     t_correct: 15
+     t_wrong: 20
+  lr_scheduler: {gamma: 0.95, step_size: 10, type: StepLR}
+  max_dw_norm: 1000.2
+  momentum: 0
+  numpy_seed: 12345
+  optimizer: adam
+  print_step_percent: 5.0
+  resolution: 0.01
+  sim_time: 20.0
+  torch_seed: 2000
+  training_noise: false
+  use_forward_integrator: false
+  use_hicannx: false
+  weight_bumping_exp: true
+  weight_bumping_targeted: true
+  weight_bumping_value: 0.0005

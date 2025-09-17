@@ -1,0 +1,113 @@
+dataset_params:
+  multiply_input_layer: 5
+  name: yin_yang
+default_neuron_params:
+  g_leak: 1.0
+  leak: 0.0
+  max_dw_norm: 0.2
+  tau_mem: 1.0
+  tau_syn: 1.0
+  threshold: 2.6
+network_layout:
+  layers:
+  - delay_mean: 0.0
+    delay_std: 0.5
+    feat_in:
+    - 20
+    - 1
+    feat_out:
+    - 20
+    - 30
+    monitor: true
+    name: DelayAxonal
+    positivity:
+      name: sigmoid
+      scale: 1.5
+      shift: 2.0
+    presyn_sharing_factor: 5
+    trainable: true
+  - feat_in:
+    - 20
+    - 30
+    feat_out:
+    - 30
+    - 1
+    max_num_missing_spikes: 0.05
+    monitor: true
+    name: NeuronLayer
+    size: 30
+    trainable: true
+    weights_mean: 0.1
+    weights_std: 0.12
+  - delay_mean: 0.0
+    delay_std: 0.5
+    feat_in:
+    - 30
+    - 1
+    feat_out:
+    - 30
+    - 3
+    monitor: true
+    name: DelayAxonal
+    positivity:
+      name: sigmoid
+      scale: 1.5
+      shift: 2.0
+    trainable: true
+  - feat_in:
+    - 30
+    - 3
+    feat_out:
+    - 3
+    - 1
+    max_num_missing_spikes: 0.05
+    monitor: true
+    name: NeuronLayer
+    size: 3
+    trainable: true
+    weights_mean: 0.075
+    weights_std: 0.15
+  n_inputs: 20
+training_params:
+  batch_size: 40
+  batch_size_eval: 200
+  clip_weights_max: 2.1
+  enforce_cpu: false
+  epoch_number: 300
+  epoch_snapshots:
+  - 1
+  - 5
+  - 10
+  - 15
+  - 20
+  - 30
+  - 40
+  - 50
+  - 100
+  - 150
+  - 200
+  - 250
+  - 300
+  learning_rate: 0.002
+  loss:
+    delta_t: 0.3
+    type: shift_invariant_MSE
+  lr_scheduler:
+    gamma: 0.95
+    step_size: 20
+    type: StepLR
+  max_dw_norm: false
+  momentum: 0
+  numpy_seed: 12345
+  optimizer: adam
+  print_step_percent: 5.0
+  resolution: 0.01
+  rounding_precision: false
+  sim_time: 4.0
+  substrate: hx_pynn
+  torch_seed: 2000
+  training_noise: false
+  use_forward_integrator: false
+  weight_bumping_exp: true
+  weight_bumping_targeted: true
+  weight_bumping_value: 0.0005

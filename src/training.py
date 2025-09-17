@@ -1,4 +1,6 @@
 #!python3
+from collections import defaultdict
+import copy
 import matplotlib as mpl
 # mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -12,6 +14,7 @@ import time
 import torch
 import yaml
 
+import networks
 import utils
 
 torch.set_default_dtype(torch.float64)
@@ -20,317 +23,6 @@ torch.set_default_dtype(torch.float64)
 def running_mean(x, N=30):
     cumsum = np.cumsum(np.insert(x, 0, 0))
     return (cumsum[N:] - cumsum[:-N]) / float(N)
-
-
-class Net(torch.nn.Module):
-    def __init__(self, network_layout, sim_params, device):
-        super(Net, self).__init__()
-        self.n_inputs = network_layout['n_inputs']
-        self.n_layers = network_layout['n_layers']
-        self.layer_sizes = network_layout['layer_sizes']
-        self.n_biases = network_layout['n_biases']
-        self.weight_means = network_layout['weight_means']
-        self.weight_stdevs = network_layout['weight_stdevs']
-        self.device = device
-
-        if 'bias_times' in network_layout.keys():
-            if len(network_layout['bias_times']) > 0 and isinstance(network_layout['bias_times'][0], (list, np.ndarray)):
-                self.bias_times = network_layout['bias_times']
-            else:
-                self.bias_times = [network_layout['bias_times']] * self.n_layers
-        else:
-            self.bias_times = []
-        self.biases = []
-        for i in range(self.n_layers):
-            bias = utils.to_device(utils.bias_inputs(self.n_biases[i], self.bias_times[i]), device)
-            self.biases.append(bias)
-        self.layers = torch.nn.ModuleList()
-        layer = utils.EqualtimeLayer(self.n_inputs, self.layer_sizes[0],
-                                     sim_params, (self.weight_means[0], self.weight_stdevs[0]),
-                                     device, self.n_biases[0])
-        self.layers.append(layer)
-        for i in range(self.n_layers - 1):
-            layer = utils.EqualtimeLayer(self.layer_sizes[i], self.layer_sizes[i + 1],
-                                         sim_params, (self.weight_means[i + 1], self.weight_stdevs[i + 1]),
-                                         device, self.n_biases[i + 1])
-            self.layers.append(layer)
-
-        self.rounding_precision = sim_params.get('rounding_precision')
-        self.rounding = self.rounding_precision not in (None, False)
-        self.sim_params = sim_params
-        self.use_hicannx = sim_params.get('use_hicannx', False)
-        self.fast_eval = False
-
-        if self.use_hicannx:
-            self.hx_settings = get_hx_settings()
-
-            self.hx_settings['retries'] = 5
-            self.hx_settings['single_simtime'] = 30.
-            self.hx_settings['intrinsic_timescale'] = 1e-6
-            self.hx_settings['scale_times'] = self.hx_settings['taum'] * self.hx_settings['intrinsic_timescale']
-
-            if self.rounding:
-                self.rounding_precision = max(self.rounding,
-                                              1. / self.hx_settings['scale_weights'])
-            else:
-                self.rounding_precision = 1. / self.hx_settings['scale_weights']
-                self.rounding = True
-
-            if 'clip_weights_max' in self.sim_params and self.sim_params['clip_weights_max'] not in (None, False):
-                self.sim_params['clip_weights_max'] = min(self.sim_params['clip_weights_max'],
-                                                          63 / self.hx_settings['scale_weights'])
-            else:
-                self.sim_params['clip_weights_max'] = 63 / self.hx_settings['scale_weights']
-
-            self.init_hicannx(device)
-
-        if self.rounding:
-            print(f"#### Rounding the weights to precision {self.rounding_precision}")
-        return
-
-    def __del__(self):
-        if self.use_hicannx and hasattr(self, '_ManagedConnection'):
-            self._ManagedConnection.__exit__()
-
-    def init_hicannx(self, device):
-        assert np.all(np.array(self.n_biases[1:]) == 0), "for now, on HX no bias in any but first layer is possible"
-
-        self.hx_record_neuron = None
-        self.hx_record_target = "membrane"
-        self.plot_rasterSimvsEmu = False
-        self.plot_raster = False
-
-        self.largest_possible_batch = 0
-        self._record_timings = False
-        self._record_power = False
-
-        import pylogging
-        pylogging.reset()
-        pylogging.default_config(
-            level=pylogging.LogLevel.WARN,
-            fname="",
-            # level=pylogging.LogLevel.DEBUG,
-            # format='%(levelname)-6s%(asctime)s,%(msecs)03d %(name)s  %(message)s',
-            print_location=False,
-            color=True,
-            date_format="RELATIVE")
-
-        # import modified backend based on strobe backend from SB and BC
-        import fastanddeep.fd_backend
-        import pyhxcomm_vx as hxcomm
-        self._ManagedConnection = hxcomm.ManagedConnection()
-        connection = self._ManagedConnection.__enter__()
-
-        self.hx_backend = fastanddeep.fd_backend.FandDBackend(
-            connection=connection,
-            structure=[self.n_inputs + self.n_biases[0]] + self.layer_sizes,
-            calibration=self.hx_settings['calibration'],
-            synapse_bias=self.hx_settings['synapse_bias'],
-        )
-
-        self.hx_backend.configure()
-
-        if 'calibration_custom' in self.hx_settings:
-            self.hx_backend.config_postcalib(self.hx_settings['calibration_custom'])
-
-        self.hx_lastsetweights = [torch.full(l.weights.data.shape, -64) for l in self.layers]
-        self.write_weights_to_hicannx()
-        return
-
-    def stimulate_hx(self, inpt_batch):
-        if self._record_timings:
-            timer = utils.TIMER("==")
-        num_batch, num_inp = inpt_batch.shape
-        # in case we have a batch that is too long do slice consecutively
-        if self.largest_possible_batch > 0 and num_batch > self.largest_possible_batch:
-            return_value = [[]] * self.n_layers
-            iters = int(np.ceil(num_batch / self.largest_possible_batch))
-            print(f"Splitting up batch of size {num_batch} into {iters} "
-                  f"batches of largest size {self.largest_possible_batch}")
-            for i in range(iters):
-                tmp = self.stimulate_hx(
-                    inpt_batch[i * self.largest_possible_batch: (i + 1) * self.largest_possible_batch])
-                for j, l in enumerate(tmp):
-                    if i == 0:
-                        return_value[j] = [l]
-                    else:
-                        return_value[j].append(l)
-            return [torch.cat(l, dim=0) for l in return_value]
-
-        # create one long spiketrain of batch
-        spiketrain, simtime = utils.hx_spiketrain_create(
-            inpt_batch.cpu().detach().numpy(),
-            self.hx_settings['single_simtime'],
-            self.hx_settings['scale_times'],
-            np.arange(num_batch).reshape((-1, 1)).repeat(num_inp, 1),
-            np.empty_like(inpt_batch.cpu(), dtype=int),
-        )
-        # remove infs from spiketrain
-        spiketrain = utils.hx_spiketrain_purgeinf(spiketrain)
-        if self._record_timings:
-            timer.time("spiketrain creation&purging")
-        # pass inputs to hicannx
-        if self.hx_record_neuron is not None:
-            self.hx_backend.set_readout(self.hx_record_neuron, target=self.hx_record_target)
-        retries = self.hx_settings['retries']
-        while retries > 0:
-            if self._record_timings:
-                timer.time("shit")
-            spikes_all, trace = self.hx_backend.run(
-                duration=simtime,
-                input_spikes=[spiketrain],
-                record_madc=(self.hx_record_neuron is not None),
-                measure_power=self._record_power,
-                fast_eval=self.fast_eval,
-                record_timings=self._record_timings,
-            )
-            if self._record_timings:
-                timer.time("hx_backend.run")
-                print("==time on chip should be "
-                      f"{self.hx_settings['single_simtime'] * self.hx_settings['scale_times'] * 1e4}")
-            spikes_all = [s[0] for s in spikes_all]
-            # repeat if sensibility check (first and last layer) not passed (if fast_eval just go ahead)
-            if self.fast_eval or ((len(spikes_all[0]) == 0 or spikes_all[0][:, 0].max() < simtime) and
-                                  (len(spikes_all[-1]) == 0 or spikes_all[-1][:, 0].max() < simtime)):
-                if not self.fast_eval:
-                    last_spike = max(spikes_all[0][:, 0]) if len(spikes_all[0]) > 0 else 0.
-                    # print(f"last_spike occurs as {last_spike} for simtime {simtime}")
-                    if simtime - last_spike > 0.001:
-                        # in test we have runs without output spikes
-                        if sys.argv[0][:5] != 'test_':
-                            # raise Exception("seems to be that batch wasn't fully computed")
-                            pass
-                    # print(np.unique(spikes_l[:, 1]))
-                    # sys.exit()
-                break
-            retries -= 1
-        else:
-            raise Exception("FPGA stalled and retries were exceeded")
-
-        # save trace if recorded
-        if self.hx_record_neuron is not None:
-            # get rid of error values (FPGA fail or sth)
-            mask_trace = (trace[:, 0] == 0)
-            if mask_trace.sum() > 0:
-                print(f"#### trace of neuron {self.hx_record_neuron} "
-                      f"received {mask_trace.sum()} steps of value 0")
-                trace = trace[np.logical_not(mask_trace)]
-            self.trace = trace
-
-        # disect spiketrains (with numba it looks a bit complicated)
-        return_value = []
-        if self._record_timings:
-            timer.time("stuff")
-        for i, spikes in enumerate(spikes_all):
-            # if fast eval only label layer, otherwise all
-            if not self.fast_eval or i == len(spikes_all) - 1:
-                # need to explicitly sort
-                spikes_t, spikes_id = spikes[:, 0], spikes[:, 1].astype(int)
-                sorting = np.argsort(spikes_t)
-                times_hw = torch.tensor(utils.hx_spiketrain_disect(
-                    spikes_t[sorting], spikes_id[sorting], self.hx_settings['single_simtime'],
-                    num_batch, self.layer_sizes[i],
-                    np.full((num_batch, self.layer_sizes[i]), np.inf, dtype=float),
-                    self.hx_settings['scale_times']))
-                return_value.append(times_hw)
-            else:
-                return_value.append(torch.zeros(num_batch, self.layer_sizes[i]))
-        if self._record_timings:
-            timer.time("spiketrain disecting")
-        return return_value
-
-    def write_weights_to_hicannx(self):
-        if not self.use_hicannx:
-            if self.sim_params['clip_weights_max']:
-                for i, layer in enumerate(self.layers):
-                    maxweight = self.sim_params['clip_weights_max']
-                    self.layers[i].weights.data = torch.clamp(layer.weights.data, -maxweight, maxweight)
-            return
-
-        maxweight = 63 / self.hx_settings['scale_weights']
-        weights_towrite = []
-        weights_changed = False
-        for i in range(self.n_layers):
-            # contain weights in range accessible on hw
-            self.layers[i].weights.data = torch.clamp(self.layers[i].weights.data, -maxweight, maxweight)
-            # prepare weights for writing
-            w_tmp = self.round_weights(
-                self.layers[i].weights.data, 1. / self.hx_settings['scale_weights']
-            ).cpu().detach().numpy()
-            w_tmp = (w_tmp * self.hx_settings['scale_weights']).astype(int)
-            weights_towrite.append(w_tmp)
-            if np.any(w_tmp != self.hx_lastsetweights[i]):
-                weights_changed = True
-
-        if weights_changed:
-            self.hx_backend.write_weights(*weights_towrite)
-
-    def forward(self, input_times):
-        # When rounding we need to save and manipulate weights before forward pass, and after
-        if self.rounding and not self.fast_eval:
-            float_weights = []
-            for layer in self.layers:
-                float_weights.append(layer.weights.data)
-                layer.weights.data = self.round_weights(layer.weights.data, self.rounding_precision)
-
-        if not self.use_hicannx:
-            hidden_times = []
-            for i in range(self.n_layers):
-                input_times_including_bias = torch.cat(
-                    (input_times,
-                     self.biases[i].view(1, -1).expand(len(input_times), -1)),
-                    1)
-                output_times = self.layers[i](input_times_including_bias)
-                if not i == (self.n_layers - 1):
-                    hidden_times.append(output_times)
-                    input_times = output_times
-                else:
-                    label_times = output_times
-            return_value = label_times, hidden_times
-        else:
-            if not self.fast_eval:
-                input_times_including_bias = torch.cat(
-                    (input_times,
-                     self.biases[0].view(1, -1).expand(len(input_times), -1)),
-                    1)
-            else:
-                input_times_including_bias = input_times
-
-            if self._record_timings:
-                timer = utils.TIMER()
-            spikes_all_hw = self.stimulate_hx(input_times_including_bias)
-            if self._record_timings:
-                timer.time("net.stimulate_hx")
-
-            # pass to layers pro forma to enable easy backward pass
-            if not self.fast_eval:
-                hidden_times = []
-                for i in range(self.n_layers):
-                    input_times_including_bias = torch.cat(
-                        (input_times,
-                         self.biases[i].view(1, -1).expand(len(input_times), -1)),
-                        1)
-                    output_times = self.layers[i](
-                        input_times_including_bias,
-                        output_times=utils.to_device(spikes_all_hw[i], self.device))
-                    if not i == (self.n_layers - 1):
-                        hidden_times.append(output_times)
-                        input_times = output_times
-                    else:
-                        label_times = output_times
-                return_value = label_times, hidden_times
-            else:
-                label_times = spikes_all_hw.pop(-1)
-                return_value = label_times, spikes_all_hw
-
-        if self.rounding and not self.fast_eval:
-            for layer, floats in zip(self.layers, float_weights):
-                layer.weights.data = floats
-
-        return return_value
-
-    def round_weights(self, weights, precision):
-        return (weights / precision).round() * precision
 
 
 def get_hx_settings() -> dict:
@@ -342,10 +34,7 @@ def get_hx_settings() -> dict:
     elif 'DEFAULT' in hx_settings:
         # adapt calibration path to default one
         hx_settings['DEFAULT']['calibration'] = f"calibrations/{hx_setup_no}.npz"
-        if not osp.isfile(hx_settings['DEFAULT']['calibration']):
-            raise FileNotFoundError(
-                f"Calibration for the current setup {hx_setup_no} has to be created first "
-                f"(probably with 'python py/generate_calibration.py --output calibrations/{hx_setup_no}.npz')")
+        hx_settings['DEFAULT']['_created_from_default'] = True
         return hx_settings['DEFAULT']
     else:
         raise OSError(f"DEFAULT not defined and setup no {hx_setup_no} is not described"
@@ -361,7 +50,7 @@ def load_data(dirname, filename, dataname):
 def load_config(path):
     with open(path) as f:
         data = yaml.safe_load(f)
-    return data['dataset'], data['neuron_params'], data['network_layout'], data['training_params']
+    return data['dataset_params'], data['default_neuron_params'], data['network_layout'], data['training_params']
 
 
 def validation_step(net, criterion, loader, device, return_input=False):
@@ -379,7 +68,7 @@ def validation_step(net, criterion, loader, device, return_input=False):
             selected_classes = criterion.select_classes(outputs)
             num_correct += len(outputs[selected_classes == labels])
             num_shown += len(labels)
-            loss = criterion(outputs, labels) * len(labels)
+            loss = criterion(outputs, labels, net) * len(labels)
             losses.append(loss)
             all_outputs.append(outputs)
             all_labels.append(labels)
@@ -410,12 +99,15 @@ def check_bump_weights(net, hidden_times, label_times, training_params, epoch, b
         -2: no bumping needed
     """
     weights_bumped = -2
+    # first go through hidden times in loop, then output below
     for i, times in enumerate(hidden_times):
+        if len(times) == 0:
+            continue
         # we want mean over batches and neurons
         denominator = times.shape[0] * times.shape[1]
         non_spikes = torch.isinf(times) + torch.isnan(times)
         num_nonspikes = float(non_spikes.bool().sum())
-        if num_nonspikes / denominator > training_params['max_num_missing_spikes'][i]:
+        if num_nonspikes / denominator > net.layers_def[i]['max_num_missing_spikes']:
             weights_bumped = i
             break
     else:
@@ -424,62 +116,94 @@ def check_bump_weights(net, hidden_times, label_times, training_params, epoch, b
         denominator = label_times.shape[0] * label_times.shape[1]
         non_spikes = torch.isinf(label_times) + torch.isnan(label_times)
         num_nonspikes = float(non_spikes.bool().sum())
-        if num_nonspikes / denominator > training_params['max_num_missing_spikes'][-1]:
+        if num_nonspikes / denominator > net.layers_def[-1]['max_num_missing_spikes']:
             weights_bumped = -1
     if weights_bumped != -2:
         if training_params['weight_bumping_exp'] and weights_bumped == last_weights_bumped:
             bump_val *= 2
         else:
             bump_val = training_params['weight_bumping_value']
+
+        # method to perform some operation on delays in case of weight bumping
+        # in limited experiments this was not useful, so commented out
+        # if isinstance(net.layers[weights_bumped - 1], utils.DelayLayer):
+        #     with torch.no_grad():
+        #         net.layers[weights_bumped - 1]._delay_parameters.data = (
+        #             utils.sigmoid_inverse(
+        #                 torch.sigmoid(net.layers[weights_bumped - 1]._delay_parameters) * 0.999)
+        #         )
         if training_params['weight_bumping_targeted']:
             # make bool and then int to have either zero or ones
             should_bump = non_spikes.sum(axis=0).bool().int()
             n_in = net.layers[i].weights.data.size()[0]
-            bumps = should_bump.repeat(n_in, 1) * bump_val
+            bumps = torch.full_like(net.layers[i].weights.data, bump_val)
+            bumps[torch.logical_not(should_bump).repeat(n_in, 1)] = 0
+
             net.layers[i].weights.data += bumps
         else:
             net.layers[i].weights.data += bump_val
 
-        # print("epoch {0}, batch {1}: missing {4} spikes, bumping weights by {2} (targeted_bump={3})".format(
-        #     epoch, batch, bump_val, training_params['weight_bumping_targeted'],
-        #     "label" if weights_bumped == -1 else "hidden"))
+        print("epoch {0}, batch {1}: missing {4} spikes, bumping weights by {2} (targeted_bump={3})".format(
+            epoch, batch, bump_val, training_params['weight_bumping_targeted'],
+            "label" if weights_bumped == -1 else "hidden"))
     return weights_bumped, bump_val
 
 
 def save_untrained_network(dirname, filename, net):
     if (dirname is None) or (filename is None):
         return
-    path = '../experiment_results/' + dirname
+
     try:
-        os.makedirs(path)
-        print("Directory ", path, " Created ")
+        os.makedirs(dirname)
+        print("Directory ", dirname, " Created ")
     except FileExistsError:
-        print("Directory ", path, " already exists")
-    if not path[-1] == '/':
-        path += '/'
+        print("Directory ", dirname, " already exists")
+    if not dirname[-1] == '/':
+        dirname += '/'
     # save network
-    if not net.use_hicannx:
-        torch.save(net, path + filename + '_untrained_network.pt')
-    else:
+    if net.substrate == 'sim':
+        torch.save(net, dirname + filename + '_untrained_network.pt')
+    elif net.substrate == 'hx':
         tmp_backend = net.hx_backend
         tmp_MC = net._ManagedConnection
+        tmp_connection = net._connection
         del net.hx_backend
         del net._ManagedConnection
-        torch.save(net, path + filename + '_untrained_network.pt')
+        del net._connection
+        torch.save(net, dirname + filename + '_untrained_network.pt')
         net.hx_backend = tmp_backend
         net._ManagedConnection = tmp_MC
+        net._connection = tmp_connection
         # save hardware licence to identify the used hicann
-        with open(path + filename + '_hw_licences.txt', 'w') as f:
+        with open(dirname + filename + '_hw_licences.txt', 'w') as f:
             f.write(os.environ.get('SLURM_HARDWARE_LICENSES'))
+        # save fpga bitfile info
+        with open(dirname + filename + '_fpga_bitfile.yaml', 'w') as f:
+            f.write(tmp_connection.bitfile_info)
         # save current calib settings
-        shutil.copy(osp.join('py', 'hx_settings.yaml'), path + '/hw_settings.yaml')
+        shutil.copy(osp.join('py', 'hx_settings.yaml'), dirname + '/hw_settings.yaml')
+    elif net.substrate == 'hx_pynn':
+        tmp_network = net.network
+        del net.network
+        torch.save(net, dirname + filename + '_untrained_network.pt')
+        net.network = tmp_network
+        # save hardware licence to identify the used hicann
+        with open(dirname + filename + '_hw_licences.txt', 'w') as f:
+            f.write(os.environ.get('SLURM_HARDWARE_LICENSES'))
+        # save fpga bitfile info
+        with open(dirname + filename + '_fpga_bitfile.yaml', 'w') as f:
+            f.write(list(net.network.pynn.simulator.state.conn.bitfile_info.values())[0])
+        # save current calib settings
+        shutil.copy(osp.join('py', 'hx_settings.yaml'), dirname + '/hw_settings.yaml')
+    else:
+        raise NotImplementedError()
     return
 
 
-def save_config(dirname, filename, neuron_params, network_layout, training_params, epoch_dir=(False, -1)):
+def save_config(dirname, filename, dataset_params, default_neuron_params,
+                network_layout, training_params, epoch_dir=(False, -1)):
     if (dirname is None) or (filename is None):
         return
-    dirname = '../experiment_results/' + dirname
     if not dirname[-1] == '/':
         dirname += '/'
     if epoch_dir[0]:
@@ -489,7 +213,7 @@ def save_config(dirname, filename, neuron_params, network_layout, training_param
         print("Directory ", dirname, " Created ")
     # save parameter configs
     with open(osp.join(dirname, 'config.yaml'), 'w') as f:
-        yaml.dump({"dataset": filename, "neuron_params": neuron_params,
+        yaml.dump({"dataset_params": dataset_params, "default_neuron_params": default_neuron_params,
                    "network_layout": network_layout, "training_params": training_params}, f)
     with open(osp.join(dirname, filename + '_gitsha.txt'), 'w') as f:
         try:
@@ -501,11 +225,9 @@ def save_config(dirname, filename, neuron_params, network_layout, training_param
     return
 
 
-def save_data(dirname, filename, net, label_weights, train_losses, train_accuracies, val_losses, val_accuracies,
-              val_labels, mean_val_outputs_sorted, std_val_outputs_sorted, epoch_dir=(False, -1)):
+def save_result_dict(dirname, filename, net, result_dict, epoch_dir=(False, -1)):
     if (dirname is None) or (filename is None):
         return
-    dirname = '../experiment_results/' + dirname
     if not dirname[-1] == '/':
         dirname += '/'
     if epoch_dir[0]:
@@ -516,31 +238,56 @@ def save_data(dirname, filename, net, label_weights, train_losses, train_accurac
     except FileExistsError:
         print("Directory ", dirname, " already exists")
     # save network
-    if not net.use_hicannx:
+    if net.substrate == 'sim':
         torch.save(net, dirname + filename + '_network.pt')
-    else:
+    elif net.substrate == 'hx':
         tmp_backend = net.hx_backend
         tmp_MC = net._ManagedConnection
+        tmp_connection = net._connection
         del net.hx_backend
         del net._ManagedConnection
+        del net._connection
         torch.save(net, dirname + filename + '_network.pt')
         net.hx_backend = tmp_backend
         net._ManagedConnection = tmp_MC
+        net._connection = tmp_connection
         # save hardware licence to identify the used hicann
         with open(dirname + filename + '_hw_licences.txt', 'w') as f:
             f.write(os.environ.get('SLURM_HARDWARE_LICENSES'))
+        # save fpga bitfile info
+        with open(dirname + filename + '_fpga_bitfile.yaml', 'w') as f:
+            f.write(tmp_connection.bitfile_info)
         # save current calib settings
         with open(dirname + '/hx_settings.yaml', 'w') as f:
             yaml.dump({os.environ.get('SLURM_HARDWARE_LICENSES'): net.hx_settings}, f)
+    elif net.substrate == 'hx_pynn':
+        tmp_network = net.network
+        del net.network
+        torch.save(net, dirname + filename + '_network.pt')
+        net.network = tmp_network
+        # save hardware licence to identify the used hicann
+        with open(dirname + filename + '_hw_licences.txt', 'w') as f:
+            f.write(os.environ.get('SLURM_HARDWARE_LICENSES'))
+        # save fpga bitfile info
+        with open(dirname + filename + '_fpga_bitfile.yaml', 'w') as f:
+            f.write(list(net.network.pynn.simulator.state.conn.bitfile_info.values())[0])
+        # save current calib settings
+        with open(dirname + '/hx_settings.yaml', 'w') as f:
+            yaml.dump({os.environ.get('SLURM_HARDWARE_LICENSES'): net.hx_settings}, f)
+    else:
+        raise NotImplementedError()
+
     # save training result
-    np.save(dirname + filename + '_label_weights_training.npy', label_weights)
-    np.save(dirname + filename + '_train_losses.npy', train_losses)
-    np.save(dirname + filename + '_train_accuracies.npy', train_accuracies)
-    np.save(dirname + filename + '_val_losses.npy', val_losses)
-    np.save(dirname + filename + '_val_accuracies.npy', val_accuracies)
-    np.save(dirname + filename + '_val_labels.npy', val_labels)
-    np.save(dirname + filename + '_mean_val_outputs_sorted.npy', mean_val_outputs_sorted)
-    np.save(dirname + filename + '_std_val_outputs_sorted.npy', std_val_outputs_sorted)
+    np.save(dirname + filename + '_parameters_training.npy',
+            {k: {'name': v['name'], 'params': np.array(v['params'])}
+             for k, v in result_dict['all_parameters'].items()})
+    np.save(dirname + filename + '_train_losses.npy', result_dict['all_train_loss'])
+    np.save(dirname + filename + '_train_accuracies.npy', result_dict['all_train_accuracy'])
+    np.save(dirname + filename + '_val_losses.npy', result_dict['all_validate_loss'])
+    np.save(dirname + filename + '_val_accuracies.npy', result_dict['all_validate_accuracy'])
+    np.save(dirname + filename + '_mean_val_outputs_sorted.npy', result_dict['mean_validate_outputs_sorted'])
+    np.save(dirname + filename + '_std_val_outputs_sorted.npy', result_dict['std_validate_outputs_sorted'])
+    np.save(dirname + filename + '_weight_bumping_steps.npy', result_dict['weight_bumping_steps'])
     return
 
 
@@ -548,7 +295,6 @@ def save_result_spikes(dirname, filename, train_times, train_labels, train_input
                        test_times, test_labels, test_inputs, epoch_dir=(False, -1)):
     if (dirname is None) or (filename is None):
         return
-    dirname = '../experiment_results/' + dirname
     if not dirname[-1] == '/':
         dirname += '/'
     if epoch_dir[0]:
@@ -570,7 +316,6 @@ def save_result_spikes(dirname, filename, train_times, train_labels, train_input
 def save_optim_state(dirname, filename, optimizer, scheduler, np_rand_state, torch_rand_state, epoch_dir=(False, -1)):
     if (dirname is None) or (filename is None):
         return
-    dirname = '../experiment_results/' + dirname
     if not dirname[-1] == '/':
         dirname += '/'
     if epoch_dir[0]:
@@ -612,10 +357,22 @@ def load_optim_state(dirname, filename, net, training_params):
         data = yaml.load_all(f, Loader=yaml.Loader)
         all_configs = next(iter(data))
     if training_params['optimizer'] == 'adam':
-        optimizer = torch.optim.Adam(net.parameters(), lr=training_params['learning_rate'])
+        optimizer = torch.optim.Adam(
+            [{"params": layer.parameters(),
+              "lr": layer.lr if layer.lr is not None else training_params['learning_rate']}
+             for layer in net.layers
+            ],
+            lr=training_params['learning_rate']
+        )
     else:
-        optimizer = torch.optim.SGD(net.parameters(), lr=training_params['learning_rate'],
-                                    momentum=training_params['momentum'])
+        optimizer = torch.optim.SGD(
+            [{"params": layer.parameters(),
+              "lr": layer.lr if layer.lr is not None else training_params['learning_rate']}
+             for layer in net.layers
+            ],
+            lr=training_params['learning_rate'],
+            momentum=training_params['momentum']
+        )
     optim_state = all_configs[0]
     optimizer.load_state_dict(optim_state)
     scheduler = setup_lr_scheduling(training_params['lr_scheduler'], optimizer)
@@ -637,6 +394,23 @@ def load_optim_state(dirname, filename, net, training_params):
         torch_rand_state = None
     return optimizer, scheduler, torch_rand_state, numpy_rand_state
 
+def load_result_dict(dirname_long, filename):
+    result_dict = {}
+    result_dict['all_train_loss'] = list(load_data(dirname_long, filename, '_train_losses.npy'))
+    result_dict['all_train_accuracy'] = list(load_data(dirname_long, filename, '_train_accuracies.npy'))
+    result_dict['all_validate_loss'] = list(load_data(dirname_long, filename, '_val_losses.npy'))
+    result_dict['all_validate_accuracy'] = list(load_data(dirname_long, filename, '_val_accuracies.npy'))
+    all_parameters = load_data(dirname_long, filename, '_parameters_training.npy').item()
+    result_dict['all_parameters'] = {k: {'name': v['name'], 'params': list(v['params'])} for k, v in all_parameters.items()}
+
+    mean_validate_outputs_sorted = list(load_data(dirname_long, filename, '_mean_val_outputs_sorted.npy'))
+    result_dict['mean_validate_outputs_sorted'] = [list(item) for item in mean_validate_outputs_sorted]
+    std_validate_outputs_sorted = list(load_data(dirname_long, filename, '_std_val_outputs_sorted.npy'))
+    result_dict['std_validate_outputs_sorted'] = [list(item) for item in std_validate_outputs_sorted]
+
+    result_dict['weight_bumping_steps'] = list(load_data(dirname_long, filename, '_weight_bumping_steps.npy'))
+
+    return result_dict
 
 def apply_noise(input_times, noise_params, device):
     shape = input_times.size()
@@ -649,7 +423,7 @@ def apply_noise(input_times, noise_params, device):
 
 
 def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, trainloader, valloader,
-               num_classes, all_weights, all_train_loss, all_validate_loss, std_validate_outputs_sorted,
+               num_classes, all_parameters, all_train_loss, all_validate_loss, std_validate_outputs_sorted,
                mean_validate_outputs_sorted, tmp_training_progress, all_validate_accuracy,
                all_train_accuracy, weight_bumping_steps, training_params):
     bump_val = training_params['weight_bumping_value']
@@ -680,15 +454,15 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
             last_weights_bumped, bump_val = check_bump_weights(net, hidden_times, label_times,
                                                                training_params, epoch, j, bump_val, last_weights_bumped)
             live_plot = True
-            if last_weights_bumped != -2:  # means bumping happened
-                weight_bumping_steps.append(epoch * len(trainloader) + j)
-            else:
-                loss = criterion(label_times, labels)
+            weight_bumping_steps.append(last_weights_bumped)
+            if last_weights_bumped == -2:  # means no bumping happened
+                loss = criterion(label_times, labels, net)
                 loss.backward()
                 optimizer.step()
+                net.delays_rectify()
                 # on hardware we need extra step to write weights
                 train_loss.append(loss.item())
-            net.write_weights_to_hicannx()
+            net.write_weights()
             num_correct += len(label_times[selected_classes == labels])
             num_shown += len(labels)
             tmp_training_progress.append(len(label_times[selected_classes == labels]) / len(labels))
@@ -706,7 +480,7 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
                 ax.axhline(0.01)
                 ax.set_yticks([0.01, 0.05, 0.1, 0.3])
                 ax.set_yticklabels([1, 5, 10, 30])
-                fig.savefig('live_accuracy.png')
+                fig.savefig(f'live_accuracy_{os.environ.get("SLURM_HARDWARE_LICENSES")}.png')
                 print("===========Saved live accuracy plot")
                 plt.close(fig)
 
@@ -728,34 +502,42 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
             validate_loss, validate_accuracy, validate_outputs, validate_labels, _ = validation_step(
                 net, criterion, valloader, device)
 
+            # TODO: if one rewrites this without the loops for speedup
             tmp_class_outputs = [[] for i in range(num_classes)]
             for pattern in range(len(validate_outputs)):
                 true_label = validate_labels[pattern]
                 tmp_class_outputs[true_label].append(validate_outputs[pattern].cpu().detach().numpy())
             for i in range(num_classes):
                 tmp_times = np.array(tmp_class_outputs[i])
-                tmp_times[np.isinf(tmp_times)] = np.NaN
+                tmp_times[np.isinf(tmp_times)] = np.nan
                 mask_notAllNan = np.logical_not(np.isnan(tmp_times)).sum(0) > 0
-                mean_times = np.ones(tmp_times.shape[1:]) * np.NaN
-                std_times = np.ones(tmp_times.shape[1:]) * np.NaN
+                mean_times = np.ones(tmp_times.shape[1:]) * np.nan
+                std_times = np.ones(tmp_times.shape[1:]) * np.nan
                 mean_times[mask_notAllNan] = np.nanmean(tmp_times[:, mask_notAllNan], 0)
                 std_times[mask_notAllNan] = np.nanstd(tmp_times[:, mask_notAllNan], 0)
                 mean_validate_outputs_sorted[i].append(mean_times)
                 std_validate_outputs_sorted[i].append(std_times)
 
             all_validate_accuracy.append(validate_accuracy)
-            all_weights.append(net.layers[-1].weights.data.cpu().detach().numpy().copy())
+            for i, layer in enumerate([l for l in net.layers if l.monitor]):
+                if isinstance(layer, utils.DelayLayer):
+                    tmp_data = layer.effective_delays()
+                else:
+                    tmp_data = next(layer.parameters())
+                all_parameters[i]['params'].append(
+                    tmp_data.data.cpu().detach().numpy().copy()
+                )
             all_validate_loss.append(validate_loss.data.cpu().detach().numpy())
 
         if (epoch % print_step) == 0:
             print("... {0:.0f}% done, train accuracy: {4:.3f}, validation accuracy: {1:.3f},"
                   "trainings loss: {2:.5f}, validation loss: {3:.5f}".format(
                       epoch * 100 / training_params['epoch_number'], validate_accuracy,
-                      np.mean(train_loss) if len(train_loss) > 0 else np.NaN,
+                      np.mean(train_loss) if len(train_loss) > 0 else np.nan,
                       validate_loss, train_accuracy),
                   flush=True)
 
-        result_dict = {'all_weights': all_weights,
+        result_dict = {'all_parameters': all_parameters,
                        'all_train_loss': all_train_loss,
                        'all_validate_loss': all_validate_loss,
                        'std_validate_outputs_sorted': std_validate_outputs_sorted,
@@ -770,7 +552,8 @@ def run_epochs(e_start, e_end, net, criterion, optimizer, scheduler, device, tra
     return net, criterion, optimizer, scheduler, result_dict
 
 
-def train(training_params, network_layout, neuron_params, dataset_train, dataset_val, dataset_test,
+def train(training_params, dataset_params, network_layout, default_neuron_params,
+          dataset_train, dataset_val, dataset_test,
           foldername='tmp', filename=''):
     if not training_params['torch_seed'] is None:
         torch.manual_seed(training_params['torch_seed'])
@@ -786,20 +569,17 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
         torch.cuda.manual_seed(training_params['torch_seed'])
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-    if not isinstance(training_params['max_num_missing_spikes'], (list, tuple, np.ndarray)):
-        training_params['max_num_missing_spikes'] = [
-            training_params['max_num_missing_spikes']] * network_layout['n_layers']
 
     # save parameter config
-    save_config(foldername, filename, neuron_params, network_layout, training_params)
+    save_config(foldername, filename, dataset_params, default_neuron_params,
+                network_layout, training_params)
 
-    # create sim params
-    sim_params = {k: training_params.get(k, False)
-                  for k in ['use_forward_integrator', 'resolution', 'sim_time',
-                            'rounding_precision', 'use_hicannx', 'max_dw_norm',
-                            'clip_weights_max']
-                  }
-    sim_params.update(neuron_params)
+    # set default values if not given
+    for k in ['use_forward_integrator', 'resolution', 'sim_time',
+              'rounding_precision', 'substrate', 'max_dw_norm',
+              'clip_weights_max']:
+        if k not in training_params:
+            training_params[k] = False
 
     print('training_params')
     print(training_params)
@@ -822,21 +602,34 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
         dataset_test, batch_size=training_params.get('batch_size_eval', None), shuffle=False), device)
 
     print("generating network")
-    net = utils.to_device(
-        Net(network_layout, sim_params, device),
-        device)
+    net = networks.get_network(
+        default_neuron_params, network_layout,
+        training_params, device)
     save_untrained_network(foldername, filename, net)
 
+    num_classes = network_layout['layers'][-1]['size']
     print("loss function")
     criterion = utils.GetLoss(training_params, 
-                              network_layout['layer_sizes'][-1],
-                              sim_params['tau_syn'], device)
+                              num_classes,
+                              default_neuron_params['tau_syn'], device)
 
     if training_params['optimizer'] == 'adam':
-        optimizer = torch.optim.Adam(net.parameters(), lr=training_params['learning_rate'])
+        optimizer = torch.optim.Adam(
+            [{"params": layer.parameters(),
+              "lr": layer.lr if layer.lr is not None else training_params['learning_rate']}
+             for layer in net.layers
+            ],
+            lr=training_params['learning_rate']
+        )
     elif training_params['optimizer'] == 'sgd':
-        optimizer = torch.optim.SGD(net.parameters(), lr=training_params['learning_rate'],
-                                    momentum=training_params['momentum'])
+        optimizer = torch.optim.SGD(
+            [{"params": layer.parameters(),
+              "lr": layer.lr if layer.lr is not None else training_params['learning_rate']}
+             for layer in net.layers
+            ],
+            lr=training_params['learning_rate'],
+            momentum=training_params['momentum']
+        )
     else:
         raise NotImplementedError(f"optimizer {training_params['optimizer']} not implemented")
     scheduler = None
@@ -844,8 +637,7 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
         scheduler = setup_lr_scheduling(training_params['lr_scheduler'], optimizer)
 
     # evaluate on validation set before training
-    num_classes = network_layout['layer_sizes'][-1]
-    all_weights = []
+    all_parameters = {}
     all_train_loss = []
     all_validate_loss = []
     std_validate_outputs_sorted = [[] for i in range(num_classes)]
@@ -867,7 +659,7 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
         for i in range(num_classes):
             tmp_times = np.array(tmp_class_outputs[i])
             inf_mask = np.isinf(tmp_times)
-            tmp_times[inf_mask] = np.NaN
+            tmp_times[inf_mask] = np.nan
             mean_times = np.nanmean(tmp_times, 0)
             std_times = np.nanstd(tmp_times, 0)
             mean_validate_outputs_sorted[i].append(mean_times)
@@ -875,20 +667,24 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
         print('Initial validation accuracy: {:.3f}'.format(validate_accuracy))
         print('Initial validation loss: {:.3f}'.format(loss))
         all_validate_accuracy.append(validate_accuracy)
-        all_weights.append(net.layers[-1].weights.data.cpu().detach().numpy().copy())
+        for i, layer in enumerate([l for l in net.layers if l.monitor]):
+            if isinstance(layer, utils.DelayLayer):
+                tmp_data = layer.effective_delays()
+            else:
+                tmp_data = next(layer.parameters())
+            all_parameters[i] = {
+                'name' : layer.__class__.__name__,
+                'params' : [tmp_data.data.cpu().detach().numpy().copy()]
+            }
         all_validate_loss.append(loss.data.cpu().detach().numpy())
 
     print("training started")
-    for i, e_end in enumerate(savepoints):
-        if i == 0:
-            e_start = 0
-        else:
-            e_start = savepoints[i - 1]
+    for e_start, e_end in zip([0] + savepoints[:-1], savepoints):
         print('Starting training from epoch {0} to epoch {1}'.format(e_start, e_end))
         net, criterion, optimizer, scheduler, result_dict = run_epochs(
             e_start, e_end, net, criterion,
             optimizer, scheduler, device, loader_train,
-            loader_val, num_classes, all_weights,
+            loader_val, num_classes, all_parameters,
             all_train_loss, all_validate_loss,
             std_validate_outputs_sorted,
             mean_validate_outputs_sorted,
@@ -896,7 +692,7 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
             all_train_accuracy, weight_bumping_steps,
             training_params)
         print('Ending training from epoch {0} to epoch {1}'.format(e_start, e_end))
-        all_weights = result_dict['all_weights']
+        all_parameters = result_dict['all_parameters']
         all_train_loss = result_dict['all_train_loss']
         all_validate_loss = result_dict['all_validate_loss']
         std_validate_outputs_sorted = result_dict['std_validate_outputs_sorted']
@@ -907,16 +703,13 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
         tmp_training_progress = result_dict['tmp_training_progress']
         # all_hidden_weights = result_dict['all_hidden_weights']
         # all_label_weights = result_dict['all_label_weights']
-        save_data(foldername, filename, net, all_weights, all_train_loss,
-                  all_train_accuracy, all_validate_loss, all_validate_accuracy,
-                  validate_labels, mean_validate_outputs_sorted, std_validate_outputs_sorted,
-                  epoch_dir=(True, e_end))
+        save_result_dict(foldername, filename, net, result_dict, epoch_dir=(True, e_end))
 
         # evaluate on test set
-        if training_params['use_hicannx']:
-            return_input = True
-        else:
+        if training_params['substrate'] == 'sim':
             return_input = False
+        else:
+            return_input = True
         # run again on training set (for spiketime saving)
         loss, final_train_accuracy, final_train_outputs, final_train_labels, final_train_inputs = validation_step(
             net, criterion, loader_train, device, return_input=return_input)
@@ -927,7 +720,8 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
                            test_outputs, test_labels, test_inputs, epoch_dir=(True, e_end))
 
         # each savepoint needs config to be able to run inference for eval
-        save_config(foldername, filename, neuron_params, network_layout, training_params, epoch_dir=(True, e_end))
+        save_config(foldername, filename, dataset_params, default_neuron_params,
+                    network_layout, training_params, epoch_dir=(True, e_end))
         numpy_rand_state = np.random.get_state()
         torch_rand_state = torch.get_rng_state()
         save_optim_state(foldername, filename, optimizer, scheduler, numpy_rand_state,
@@ -936,9 +730,7 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
     print('####################')
     print('Test accuracy: {}'.format(test_accuracy))
 
-    save_data(foldername, filename, net, all_weights, all_train_loss,
-              all_train_accuracy, all_validate_loss, all_validate_accuracy,
-              validate_labels, mean_validate_outputs_sorted, std_validate_outputs_sorted)
+    #save_result_dict(foldername, filename, net, result_dict)
 
     return net
 
@@ -946,7 +738,8 @@ def train(training_params, network_layout, neuron_params, dataset_train, dataset
 def continue_training(dirname, filename, start_epoch, savepoints, dataset_train, dataset_val, dataset_test,
                       net=None):
     dirname_long = dirname + '/epoch_{}/'.format(start_epoch)
-    dataset, neuron_params, network_layout, training_params = load_config(osp.join(dirname_long, "config.yaml"))
+    dataset_params, default_neuron_params, network_layout, training_params = load_config(
+        osp.join(dirname_long, "config.yaml"))
     if not training_params['torch_seed'] is None:
         torch.manual_seed(training_params['torch_seed'])
     if not training_params['numpy_seed'] is None:
@@ -957,7 +750,9 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
     all_train_accuracy = list(load_data(dirname_long, filename, '_train_accuracies.npy'))
     all_validate_loss = list(load_data(dirname_long, filename, '_val_losses.npy'))
     all_validate_accuracy = list(load_data(dirname_long, filename, '_val_accuracies.npy'))
-    all_weights = list(load_data(dirname_long, filename, '_label_weights_training.npy'))
+    all_parameters = load_data(dirname_long, filename, '_parameters_training.npy').item()
+    all_parameters = {k: {'name': v['name'], 'params': list(v['params'])} for k, v in all_parameters.items()}
+
     mean_validate_outputs_sorted = list(load_data(dirname_long, filename, '_mean_val_outputs_sorted.npy'))
     mean_validate_outputs_sorted = [list(item) for item in mean_validate_outputs_sorted]
     std_validate_outputs_sorted = list(load_data(dirname_long, filename, '_std_val_outputs_sorted.npy'))
@@ -971,18 +766,6 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
         torch.cuda.manual_seed(training_params['torch_seed'])
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-
-    if not isinstance(training_params['max_num_missing_spikes'], (list, tuple, np.ndarray)):
-        training_params['max_num_missing_spikes'] = [
-            training_params['max_num_missing_spikes']] * network_layout['n_layers']
-
-    # create sim params
-    sim_params = {k: training_params.get(k, False)
-                  for k in ['use_forward_integrator', 'resolution', 'sim_time',
-                            'rounding_precision', 'use_hicannx', 'max_dw_norm',
-                            'clip_weights_max']
-                  }
-    sim_params.update(neuron_params)
 
     print('training_params')
     print(training_params)
@@ -1009,15 +792,15 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
         print("not doing anything with net, only returning it")
         return net
 
+    num_classes = network_layout['layers'][-1]['size']
     print("loading optimizer and scheduler")
     criterion = utils.GetLoss(training_params,
-                              network_layout['layer_sizes'][-1],
-                              sim_params['tau_syn'], device)
+                              num_classes,
+                              default_neuron_params['tau_syn'], device)
     optimizer, scheduler, torch_rand_state, numpy_rand_state = load_optim_state(
         dirname_long, filename, net, training_params)
 
     # evaluate on validation set before training
-    num_classes = network_layout['layer_sizes'][-1]
 
     print("initial validation started")
     with torch.no_grad():
@@ -1030,7 +813,7 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
         for i in range(num_classes):
             tmp_times = np.array(tmp_class_outputs[i])
             inf_mask = np.isinf(tmp_times)
-            tmp_times[inf_mask] = np.NaN
+            tmp_times[inf_mask] = np.nan
             mean_times = np.nanmean(tmp_times, 0)
             std_times = np.nanstd(tmp_times, 0)
             mean_validate_outputs_sorted[i].append(mean_times)
@@ -1038,7 +821,14 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
         print('Initial validation accuracy: {:.3f}'.format(validate_accuracy))
         print('Initial validation loss: {:.3f}'.format(loss))
         all_validate_accuracy.append(validate_accuracy)
-        all_weights.append(net.layers[-1].weights.data.cpu().detach().numpy().copy())
+        for i, layer in enumerate([l for l in net.layers if l.monitor]):
+            if isinstance(layer, utils.DelayLayer):
+                tmp_data = layer.effective_delays()
+            else:
+                tmp_data = next(layer.parameters())
+            all_parameters[i]['params'].append(
+                tmp_data.data.cpu().detach().numpy().copy()
+            )
         all_validate_loss.append(loss.data.cpu().detach().numpy())
 
     # only seed after initial validation run
@@ -1051,16 +841,12 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
     else:
         np.random.set_state(numpy_rand_state)
     print("training started")
-    for i, e_end in enumerate(savepoints):
-        if i == 0:
-            e_start = start_epoch
-        else:
-            e_start = savepoints[i - 1]
+    for e_start, e_end in zip([start_epoch] + savepoints[:-1], savepoints):
         print('Starting training from epoch {0} to epoch {1}'.format(e_start, e_end))
         net, criterion, optimizer, scheduler, result_dict = run_epochs(
             e_start, e_end, net, criterion,
             optimizer, scheduler, device, loader_train,
-            loader_val, num_classes, all_weights,
+            loader_val, num_classes, all_parameters,
             all_train_loss, all_validate_loss,
             std_validate_outputs_sorted,
             mean_validate_outputs_sorted,
@@ -1068,7 +854,7 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
             all_train_accuracy, weight_bumping_steps,
             training_params)
         print('Ending training from epoch {0} to epoch {1}'.format(e_start, e_end))
-        all_weights = result_dict['all_weights']
+        all_parameters = result_dict['all_parameters']
         all_train_loss = result_dict['all_train_loss']
         all_validate_loss = result_dict['all_validate_loss']
         std_validate_outputs_sorted = result_dict['std_validate_outputs_sorted']
@@ -1077,16 +863,13 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
         all_train_accuracy = result_dict['all_train_accuracy']
         weight_bumping_steps = result_dict['weight_bumping_steps']
         tmp_training_progress = result_dict['tmp_training_progress']
-        save_data(dirname, filename, net, all_weights, all_train_loss,
-                  all_train_accuracy, all_validate_loss, all_validate_accuracy,
-                  validate_labels, mean_validate_outputs_sorted, std_validate_outputs_sorted,
-                  epoch_dir=(True, e_end))
+        save_result_dict(dirname, filename, net, result_dict, epoch_dir=(True, e_end))
 
         # evaluate on test set
-        if training_params['use_hicannx']:
-            return_input = True
-        else:
+        if training_params['substrate'] == 'sim':
             return_input = False
+        else:
+            return_input = True
         # run again on training set (for spiketime saving)
         loss, final_train_accuracy, final_train_outputs, final_train_labels, final_train_inputs = validation_step(
             net, criterion, loader_train, device, return_input=return_input)
@@ -1097,7 +880,8 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
                            test_outputs, test_labels, test_inputs, epoch_dir=(True, e_end))
 
         # each savepoint needs config to be able to run inference for eval
-        save_config(dirname, filename, neuron_params, network_layout, training_params, epoch_dir=(True, e_end))
+        save_config(dirname, filename, dataset_params, default_neuron_params,
+                    network_layout, training_params, epoch_dir=(True, e_end))
         numpy_rand_state = np.random.get_state()
         torch_rand_state = torch.get_rng_state()
         save_optim_state(dirname, filename, optimizer, scheduler, numpy_rand_state,
@@ -1107,8 +891,6 @@ def continue_training(dirname, filename, start_epoch, savepoints, dataset_train,
     print('####################')
     print('Test accuracy: {}'.format(test_accuracy))
 
-    save_data(dirname, filename, net, all_weights, all_train_loss,
-              all_train_accuracy, all_validate_loss, all_validate_accuracy,
-              validate_labels, mean_validate_outputs_sorted, std_validate_outputs_sorted)
+    save_result_dict(dirname, filename, net, result_dict)
 
     return net

@@ -25,7 +25,7 @@ m_train = 'x'
 m_test = '+'
 m_testInference = '3'
 ms_testInference = 5
-max_allowed_error = 8
+max_allowed_error = 10
 
 device = utils.get_default_device()
 

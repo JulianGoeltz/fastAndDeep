@@ -1,0 +1,127 @@
+ancestor: /ley/data/bitfiles/hxfpga/cube_ethernet/HXv3/stable/2024-08-21_1/extra_info.yaml
+build_time: 2024-08-21 12:57:05.242392
+compatible_until: 2
+gerrit_changeid: Ib3bfed7f2dd7423f490aefcd173195ed0a437a9a
+gerrit_patchset: 3
+hicann_tag: hicann-x_v3^0
+jenkins_jobname: latest_hxfpga_HXv3
+proj_descr:
+- dirty: false
+  hash: 153ba6fa8958fb5e14ce91fe9f5b73503cd82dea
+  message: 'cosim: strictly bind instances using verilog config'
+  repo: hxfpga
+- dirty: false
+  hash: 1b28fa37e85c2aec66fd92e3886c6a9c7bf82d30
+  message: test in new container
+  repo: hmf-fpga
+- dirty: false
+  hash: 80b8fc93498557722344d1f164d95e84168b9a88
+  message: Repeat fixes from hmf-fpga and hicann-system
+  repo: hmf-fpga-test
+- dirty: false
+  hash: 194fafb816d225c0aa8c068c46b31764abc114d2
+  message: Add second architecture 'pipelined' for  ut_send
+  repo: lib-vhdl-utils
+- dirty: false
+  hash: e8232e0d0b139d2c87e5614db746eea66d2d318d
+  message: test with new container
+  repo: lib-extoll-utils
+- dirty: false
+  hash: 24d55ed0c46e190db0a6a85d6868008f2fb05aa7
+  message: Fix counter widths in jtag_shifter.
+  repo: hicann-dls-private
+- dirty: false
+  hash: 28e729d59df3b4ff380f84351c40d4da3086bed8
+  message: 'chore: use std python paths'
+  repo: flange
+- dirty: false
+  hash: 9ebe47566c81828b2428c67251bc7ae2b51ccc2e
+  message: Disable cppcheck (requires bear) in CI
+  repo: verilog-i2c
+- dirty: false
+  hash: d7e9f305e1d12bdaebade995997834d2555f5918
+  message: Add .gitreview
+  repo: verilog-uart
+- dirty: false
+  hash: b7be7827b51536804f0bda76f8ba4be693df23a8
+  message: 'ci: use asic app'
+  repo: bss-hw-params
+- dirty: false
+  hash: b6e11404dc2bfa729c27f3bb09dbf245d7d3d659
+  message: add pulse_stretcher unit
+  repo: visionary-rtl-utils
+- dirty: false
+  hash: f7d2ad9100d35d237715f305750c7ebfded3e2e1
+  message: 'chore: ignore false-positive pylint warnings'
+  repo: s2pp
+- dirty: false
+  hash: a17655dec4aaa7c036d2317fd2fc1fe17fd3bb7c
+  message: adding delgrad, moving grads
+  repo: vision-bibtex
+- dirty: false
+  hash: 09f3a985a6f264359b10a6a129dd6dce7e55c9e8
+  message: Update doxyfile
+  repo: code-format
+- dirty: false
+  hash: 000185eb11db4d54cb6b12b09af54cf742741036
+  message: 'fix: add missing mutexes'
+  repo: lib-rcf
+- dirty: false
+  hash: 35b3cb211cabbbc5c01036ae7878a73e338166c4
+  message: 'feat: Implement indentation as ostream wrapper'
+  repo: hate
+- dirty: false
+  hash: 73dadb3ce413c521845ef7d36f818073eee4fefa
+  message: 'fix: build failed on log4cxx@1.2.0'
+  repo: logger
+- dirty: false
+  hash: 237983b173c164d225a2f5398d7e72ef60de7397
+  message: 'feat: Add ExternalPPUDRAMMemory{Byte,Quad,Block}'
+  repo: haldls
+- dirty: false
+  hash: a97040a732ab1ba954e077616303a18acf623092
+  message: 'feat: Add ExternalPPUDRAMMemory{Byte,Quad,Block,}OnFPGA'
+  repo: halco
+- dirty: false
+  hash: 6120fc0ac0d90b3c66a212b3cc5cc25034bf584e
+  message: 'feat: ContainerTicket default constructor'
+  repo: fisch
+- dirty: false
+  hash: 66b9c67bc114f82add677c6095f38843c23c4cd7
+  message: 'feat: Remove unnecessary search in Scheduler'
+  repo: libnux
+- dirty: false
+  hash: 95abf25670bd8cb7cc5b499cde56f653130cf20c
+  message: 'chore: Adapt to c/22499'
+  repo: hxcomm
+- dirty: false
+  hash: 722edd57c9e42462a660db8a1febb0211ffad07c
+  message: 'fix: Install header files when target is ''use''d'
+  repo: rant
+- dirty: false
+  hash: b6745261d8bfdce44516d58d632c3c73834839d2
+  message: 'fix: Install header files when target is ''use''d'
+  repo: ztl
+- dirty: false
+  hash: 5e2af30e9593882b471d3cd02df00b93f13ff479
+  message: 'fix: Install header files when target is ''use''d'
+  repo: pywrap
+- dirty: false
+  hash: 136c5b41cb046afe2c726aa4646928bf5190622e
+  message: 'fix: Install header files when target is ''use''d'
+  repo: lib-boost-patches
+- dirty: false
+  hash: 1d854f953f7e8c8ead44406a22bb80421ca3857c
+  message: 'chore: use std python paths'
+  repo: sctrltp
+- dirty: false
+  hash: c5f86e16b1bb12e2b56d16477867b8369c1fc715
+  message: Swap Flyspi-ADC B291681->B201249  on w24
+  repo: hwdb
+- dirty: false
+  hash: 8f41ea4f5bd1573d8f4623e9ed698a29f30036a3
+  message: Define env name for quiggeldy client username
+  repo: visions-slurm
+user: jenkins
+version: 156
+workdir: /jenkins/jenlib_workspaces_s5/latest_hxfpga_HXv3.bGF0ZXN0X2h4ZnBnYV9IWHYzIzQ3.x/workspace_cube_ethernet/hxfpga

@@ -1,0 +1,8 @@
+parameters:
+  - path: network_layout/layers/2/size
+    value: [10, 11, 12]
+  - path: [training_params/torch_seed, training_params/numpy_seed]
+    value: [0, 1, 2, 3, 4]
+  - path: training_params/learning_rate
+    value: [0.0025, 0.005, 0.01]
+

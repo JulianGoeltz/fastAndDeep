@@ -75,10 +75,10 @@ class TestIntegratorVsTimebased(unittest.TestCase):
             torch.nn.init.uniform_(weights, a=weights_mean - 2 * weights_std, b=weights_mean + 2 * weights_std)
 
         print("### generating layers")
-        layer_eventbased = utils.EqualtimeLayer(
+        layer_eventbased = utils.NeuronLayer(
             num_input, num_output, sim_params_eventbased, weights,
             device, 0)
-        layer_integrator = utils.EqualtimeLayer(
+        layer_integrator = utils.NeuronLayer(
             num_input, num_output, sim_params_integrator, weights,
             device, 0)
 
@@ -96,7 +96,7 @@ class TestIntegratorVsTimebased(unittest.TestCase):
                   f"event has {outputs_eventbased[critical]}")
             times_input = times_input[critical[0]].reshape((1, -1))
             weights = weights[:, critical[1]].reshape((-1, 1))
-            dbg_layer_integrator = utils.EqualtimeLayer(
+            dbg_layer_integrator = utils.NeuronLayer(
                 num_input, 1, sim_params_integrator, weights,
                 device, 0)
             dbg_outputs_integrator = dbg_layer_integrator(

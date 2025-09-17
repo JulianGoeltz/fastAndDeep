@@ -5,13 +5,29 @@ neuron_params:
   tau_syn: 1.0
   threshold: 1.0
 network_layout:
-  bias_times: [0.9]
-  layer_sizes: [10, 2]
-  n_biases: [1, 1]
+  layers:
+    - name: 'DelaySynaptic'
+      delay_mean: 0.0
+      delay_std: 0.05
+      trainable: true
+      monitor: true
+    - name: 'EqualtimeLayer'
+      size: 10
+      weights_mean: 1.5
+      weights_std: 1.8
+      biases: [] #[1]
+      max_num_missing_spikes: 0.3
+      trainable: true
+      monitor: true
+    - name: 'BroadcastLayer'
+    - name: 'EqualtimeLayer'
+      size: 2
+      weights_mean: 0
+      weights_std: 1.8
+      biases: [] #[1]
+      max_num_missing_spikes: 0.0
+      trainable: true
   n_inputs: 4
-  n_layers: 2
-  weight_means: [1.5, 0.5]
-  weight_stdevs: [0.8, 0.8]
 training_params:
   alpha: 0.005
   batch_size: 150

@@ -1,0 +1,7 @@
+parameters:
+  - path: [training_params/torch_seed, training_params/numpy_seed]
+    value: [1000, 1001]
+  - path: [network_layout/layers/0/name, network_layout/layers/2/name]
+    value: ["DelayAxonal", "BroadcastLayer"]
+  - path: network_layout/layers/1/size
+    value: [30, 25, 20, 15, 10, 5]

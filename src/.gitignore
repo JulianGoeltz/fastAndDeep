@@ -6,9 +6,14 @@ comparison_hist.png
 
 membrane_*.npy
 
+calibrations/*.npz
+calibrations/*.pbin
 debug_calib/
 tmp.png
-live_accuracy.png
+live_accuracy*.png
+dbg_*.png
+dbg_*.npy
+test_*.png
 
 # backup of calibrations have this form
 *.bck_*
