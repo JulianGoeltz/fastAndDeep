@@ -19,7 +19,7 @@ def jeshWithLoggedStds(String script, String filenameStdout, String filenameStde
 }
 
 def recordExitSuccess(int success) {
-	String filename_errors = '/jenkins/results/p_jg_FastAndDeep/execution_stats.json';
+	String filename_errors = '/jenkins/results/p_jg_FastAndDeep_oneAlloc/execution_stats.json';
 
 	runOnSlave(label: "frontend") {
 		// add to the json file
@@ -33,7 +33,7 @@ def recordExitSuccess(int success) {
 }
 
 
-def beautifulMattermostSend(Throwable t, Boolean readError) {
+def beautifulMattermostSend(Throwable t, Boolean readError, Boolean dontThrow=false) {
 	if (SentMattermost) {
 		throw t
 	}
@@ -54,19 +54,22 @@ def beautifulMattermostSend(Throwable t, Boolean readError) {
 			tmpErrorMsg = "\n\n```\n${tmpErrorMsg}\n```"
 		}
 	}
-	String message = "Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```${tmpErrorMsg}"
+	String message = "**_oneAlloc** Jenkins build [`${env.JOB_NAME}/${env.BUILD_NUMBER}`](${env.BUILD_URL}) failed at `${env.STAGE_NAME}` on `W${wafer}F${fpga}`!\n```\n${t.toString()}\n```${tmpErrorMsg}"
 	mattermostSend(
 		channel: notificationChannel,
 		message: message,
 		failOnError: true,
 		endpoint: "https://chat.bioai.eu:6443/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 	print(message)
-	SentMattermost = true
-	currentBuild.result = 'FAILED'
 
 	recordExitSuccess(0);
 
-	throw t
+	if(!dontThrow) {
+		SentMattermost = true
+		currentBuild.result = 'FAILED'
+
+		throw t
+	}
 }
 
 
@@ -138,14 +141,17 @@ stage("Checkout and determine chip") {
 	}
 }
 
+onSlurmResource(partition: "cube",
+		"cpus-per-task": 16,
+		wafer: "${wafer}",
+		"fpga-without": "${fpga}",
+		time: "6:0:0",
+		mem: "30G") {
+
+@Field Boolean calibDone = false;
+
 stage("create calib") {
 	try {
-		onSlurmResource(partition: "cube",
-				"cpus-per-task": 8,
-				wafer: "${wafer}",
-				"fpga-without": "${fpga}",
-				time: "10:0",
-				mem: "8G") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
 					jesh("module list")
@@ -157,11 +163,59 @@ stage("create calib") {
 					)
 				}
 			}
-		}
+			calibDone = true;
+	} catch (Throwable t) {
+		beautifulMattermostSend(t, true, true);
+	}
+}
+
+conditionalStage(name: "create calib (after reconfigure&set-wafer-id)", skip: calibDone) {
+	try {
+			inSingularity(app: "visionary-dls") {
+				withModules(modules: ["sw-macu_x86"]) {
+					jesh("hxcube_control.py --reconfigure")
+					jesh("hxcube_control.py --set-wafer-id")
+				}
+				withModules(modules: ["localdir"]) {
+					jesh("module list")
+					jesh("module show localdir")
+					jeshWithLoggedStds(
+						"cd fastAndDeep/src; python py/generate_calibration.py --output calibrations/W${wafer}F${fpga}.npz",
+						"tmp_stdout.log",
+						"tmp_stderr.log"
+					)
+				}
+			}
+			calibDone = true;
 	} catch (Throwable t) {
 		beautifulMattermostSend(t, true);
 	}
 }
+
+/* // if reenabling, set dontThrow=true in beautifulMattermostSend above
+conditionalStage(name: "create calib (after powercycle&set-wafer-id)", skip: calibDone) {
+	try {
+			inSingularity(app: "visionary-dls") {
+				withModules(modules: ["sw-macu_x86"]) {
+					jesh("hxcube_control.py --powercycle")
+					jesh("hxcube_control.py --set-wafer-id")
+				}
+				withModules(modules: ["localdir"]) {
+					jesh("module list")
+					jesh("module show localdir")
+					jeshWithLoggedStds(
+						"cd fastAndDeep/src; python py/generate_calibration.py --output calibrations/W${wafer}F${fpga}.npz",
+						"tmp_stdout.log",
+						"tmp_stderr.log"
+					)
+				}
+			}
+			calibDone = true;
+	} catch (Throwable t) {
+		beautifulMattermostSend(t, true);
+	}
+}
+*/
 
 stage("patch strobe backend") {
 	runOnSlave(label: "frontend") {
@@ -202,12 +256,6 @@ stage("training") {
 	//	}
 	//}
 	try {
-		onSlurmResource(partition: "cube",
-				"cpus-per-task": 8,
-				wafer: "${wafer}",
-				"fpga-without": "${fpga}",
-				time: "6:0:0",
-				mem: "16G") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
 					// to get all information about the executing node
@@ -220,7 +268,6 @@ stage("training") {
 					)
 				}
 			}
-		}
 	} catch (Throwable t) {
 		beautifulMattermostSend(t, true);
 	}
@@ -228,12 +275,6 @@ stage("training") {
 
 stage("inference") {
 	try {
-		onSlurmResource(partition: "cube",
-				"cpus-per-task": 8,
-				wafer: "${wafer}",
-				"fpga-without": "${fpga}",
-				time: "10:0",
-				mem: "16G") {
 			inSingularity(app: "visionary-dls") {
 				withModules(modules: ["localdir"]) {
 					jesh('env')
@@ -249,7 +290,6 @@ stage("inference") {
 					}
 				}
 			}
-		}
 	} catch (Throwable t) {
 		beautifulMattermostSend(t, true);
 	}
@@ -294,6 +334,8 @@ stage("finalisation") {
 	}
 }
 
+}
+
 
 }
 }
@@ -308,6 +350,8 @@ stage("finalisation") {
  * Setting the description of the jenkins job (to have it in the repository).
  */
 setJobDescription("""
+<h1>This is the same as `p_jg_FastAndDeep` but keeping the hardware allocation for the entire time</h1>
+
 <p>
   Repository is located <a href="https://github.com/JulianGoeltz/fastanddeep">on GitHub</a>, Jenkinsjob is executed daily in the hour after midnight and should take around 1.5 hours.
   Details on the theory <a href="https://arxiv.org/abs/1912.11443">can be found in the publication arXiv:1912.11443</a>, it is used to classify <a href="https://arxiv.org/abs/2102.08211">the Yin-Yang dataset</a>.
