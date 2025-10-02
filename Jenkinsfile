@@ -300,7 +300,7 @@ stage("inference") {
 
 stage("finalisation") {
 	runOnSlave(label: "frontend") {
-		archiveArtifacts 'fastAndDeep/experiment_results/lastrun/epoch_${numberOfEpochs}/*.png'
+		archiveArtifacts "fastAndDeep/experiment_results/lastrun/epoch_${numberOfEpochs}/*.png"
 		archiveArtifacts 'fastAndDeep/src/live_accuracy.png'
 		// plot short detailed summary
 		inSingularity(app: "visionary-dls") {
