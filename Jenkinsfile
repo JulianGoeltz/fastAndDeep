@@ -7,6 +7,8 @@ import groovy.transform.Field
 // only sent one message to mattermost
 @Field Boolean SentMattermost = false;
 
+@Field String numberOfEpochs = "400";
+
 addBuildParameter(string(name: 'chipstring', defaultValue: "random",
 		         description: 'The chip on which the experiments should be executed (in the form `W66F3`). If this string is "random", a random free chip will be used.'))
 
@@ -283,7 +285,7 @@ stage("inference") {
 					for(int i = 0;i<10;i++) {
 						jeshWithLoggedStds(
 							// python path export because changed strobe interface must be loaded; USE_LAMBERTW_SCIPY because CUDA implementation is not installed
-							'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; USE_LAMBERTW_SCIPY=yes python experiment.py inference ../experiment_results/lastrun | tee -a ../../inference.out',
+							'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; USE_LAMBERTW_SCIPY=yes python experiment.py inference ../experiment_results/lastrun ' + ${numberOfEpochs} + ' | tee -a ../../inference.out',
 							"tmp_stdout.out",
 							"tmp_stderr.log"
 						)
@@ -298,7 +300,7 @@ stage("inference") {
 
 stage("finalisation") {
 	runOnSlave(label: "frontend") {
-		archiveArtifacts 'fastAndDeep/experiment_results/lastrun/epoch_400/*.png'
+		archiveArtifacts 'fastAndDeep/experiment_results/lastrun/epoch_${numberOfEpochs}/*.png'
 		archiveArtifacts 'fastAndDeep/src/live_accuracy.png'
 		// plot short detailed summary
 		inSingularity(app: "visionary-dls") {
@@ -370,9 +372,9 @@ setJobDescription("""
 </p>
 <p>
   <h1>Stats of last stable run</h1>
-  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_400/yin_yang_classification_train.png"/>
-  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_400/yin_yang_classification_test.png"/>
+  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_${numberOfEpochs}/yin_yang_classification_train.png"/>
+  <img width=300 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_${numberOfEpochs}/yin_yang_classification_test.png"/>
   <br />
-  <img width=600 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_400/yin_yang_summary_plot.png"/>
+  <img width=600 src="lastSuccessfulBuild/artifact/fastAndDeep/experiment_results/lastrun/epoch_${numberOfEpochs}/yin_yang_summary_plot.png"/>
 </p>
 """)
