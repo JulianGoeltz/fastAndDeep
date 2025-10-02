@@ -44,10 +44,11 @@ def get_data(dirname, dataset, datatype, criterion):
 
 
 def write_new_data():
-    path = "../../experiment_results/lastrun/epoch_300"
+    path = "../../experiment_results/lastrun/epoch_400"
     dataset, neuron_params, network_layout, training_params = training.load_config(osp.join(path, "config.yaml"))
+    dataset = dataset['name']
     criterion = utils.GetLoss(training_params,
-                              network_layout['layer_sizes'][-1],
+                              network_layout['layers'][-1]['size'],
                               neuron_params['tau_syn'], device)
     # find out stats of last run
     pattern = 'the accuracy is ([0-9.]*)'
