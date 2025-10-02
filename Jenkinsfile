@@ -244,7 +244,7 @@ stage("inference") {
 					for(int i = 0;i<10;i++) {
 						jeshWithLoggedStds(
 							// python path export because changed strobe interface must be loaded; USE_LAMBERTW_SCIPY because CUDA implementation is not installed
-							'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; USE_LAMBERTW_SCIPY=yes python experiment.py inference ../experiment_results/lastrun ' + ${numberOfEpochs} + ' | tee -a ../../inference.out',
+							'cd fastAndDeep/src; export PYTHONPATH="${PWD}/py:$PYTHONPATH"; USE_LAMBERTW_SCIPY=yes python experiment.py inference ../experiment_results/lastrun ' + numberOfEpochs + ' | tee -a ../../inference.out',
 							"tmp_stdout.out",
 							"tmp_stderr.log"
 						)
