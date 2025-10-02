@@ -301,7 +301,7 @@ stage("inference") {
 stage("finalisation") {
 	runOnSlave(label: "frontend") {
 		archiveArtifacts "fastAndDeep/experiment_results/lastrun/epoch_${numberOfEpochs}/*.png"
-		archiveArtifacts 'fastAndDeep/src/live_accuracy.png'
+		archiveArtifacts 'fastAndDeep/src/live_accuracy*.png'
 		// plot short detailed summary
 		inSingularity(app: "visionary-dls") {
 			jesh('cd fastAndDeep/src/py; python jenkins_elastic.py')
