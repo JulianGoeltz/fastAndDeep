@@ -984,6 +984,8 @@ def rasterplot(dirname, filename, datatype, dataset, untrained, device=None,
             if 'mnist' in filename:
                 print(f"\rinference ongoing, at {i} of {len(loader)} batches", end='')
             print()
+            # comment out the following line to calculate and save spikes of the whole test set
+            # (not just the first batch with 150 samples)
             break
         outputs = torch.vstack(all_outputs).cpu()
         labels = torch.hstack(all_labels).cpu()
