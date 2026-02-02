@@ -179,7 +179,7 @@ def save_untrained_network(dirname, filename, net):
             f.write(os.environ.get('SLURM_HARDWARE_LICENSES'))
         # save fpga bitfile info
         with open(dirname + filename + '_fpga_bitfile.yaml', 'w') as f:
-            f.write(tmp_connection.bitfile_info)
+            f.write(tmp_connection.bitfile_info[0])
         # save current calib settings
         shutil.copy(osp.join('py', 'hx_settings.yaml'), dirname + '/hw_settings.yaml')
     elif net.substrate == 'hx_pynn':
@@ -256,7 +256,7 @@ def save_result_dict(dirname, filename, net, result_dict, epoch_dir=(False, -1))
             f.write(os.environ.get('SLURM_HARDWARE_LICENSES'))
         # save fpga bitfile info
         with open(dirname + filename + '_fpga_bitfile.yaml', 'w') as f:
-            f.write(tmp_connection.bitfile_info)
+            f.write(tmp_connection.bitfile_info[0])
         # save current calib settings
         with open(dirname + '/hx_settings.yaml', 'w') as f:
             yaml.dump({os.environ.get('SLURM_HARDWARE_LICENSES'): net.hx_settings}, f)
