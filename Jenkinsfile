@@ -61,7 +61,7 @@ def beautifulMattermostSend(Throwable t, Boolean readError, Boolean dontThrow=fa
 		channel: notificationChannel,
 		message: message,
 		failOnError: true,
-		endpoint: "https://chat.bioai.eu:6443/hooks/qrn4j3tx8jfe3dio6esut65tpr")
+		endpoint: "https://chat.bioai.eu/hooks/qrn4j3tx8jfe3dio6esut65tpr")
 	print(message)
 
 	recordExitSuccess(0);
