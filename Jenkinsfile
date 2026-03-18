@@ -142,8 +142,7 @@ stage("Checkout and determine chip") {
 
 stage("create calib") {
 	try {
-		onSlurmResource(partition: "cube",
-				"cpus-per-task": 8,
+		onSlurmResource("cpus-per-task": 8,
 				wafer: "${wafer}",
 				"fpga-without": "${fpga}",
 				time: "10:0",
@@ -204,8 +203,7 @@ stage("training") {
 	//	}
 	//}
 	try {
-		onSlurmResource(partition: "cube",
-				"cpus-per-task": 8,
+		onSlurmResource("cpus-per-task": 8,
 				wafer: "${wafer}",
 				"fpga-without": "${fpga}",
 				time: "6:0:0",
@@ -230,8 +228,7 @@ stage("training") {
 
 stage("inference") {
 	try {
-		onSlurmResource(partition: "cube",
-				"cpus-per-task": 8,
+		onSlurmResource("cpus-per-task": 8,
 				wafer: "${wafer}",
 				"fpga-without": "${fpga}",
 				time: "10:0",
