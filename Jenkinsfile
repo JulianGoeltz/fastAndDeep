@@ -143,8 +143,7 @@ stage("Checkout and determine chip") {
 	}
 }
 
-onSlurmResource(partition: "cube",
-		"cpus-per-task": 16,
+onSlurmResource("cpus-per-task": 16,
 		wafer: "${wafer}",
 		"fpga-without": "${fpga}",
 		time: "6:0:0",
