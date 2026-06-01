@@ -92,8 +92,7 @@ stage("waf setup") {
 }
 
 stage("waf configure") {
-	onSlurmResource(partition: "jenkins",
-			"cpus-per-task": 8,
+	onSlurmResource("cpus-per-task": 8,
 			time: "5:0") {
 		inSingularity(app: "visionary-dls") {
 			jesh("waf configure")
@@ -103,8 +102,7 @@ stage("waf configure") {
 
 stage("waf install") {
 	try {
-		onSlurmResource(partition: "jenkins",
-				"cpus-per-task": 4,
+		onSlurmResource("cpus-per-task": 4,
 				time: "1:0:0",
 				mem: "24G") {
 			inSingularity(app: "visionary-dls") {
