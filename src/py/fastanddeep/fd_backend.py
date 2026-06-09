@@ -104,7 +104,7 @@ class FandDBackend(strobe.backend.StrobeBackend):
                 # ensure PPU is in reset state
                 builder.write(halco.PPUControlRegisterOnDLS(ppu), ppu_control_reg_reset)
 
-        stadls.run(self._connection, builder.done())
+        stadls.run(self._connection, [builder.done()])
         self.load_ppu_program("../../bin/strobe.bin")
 
     def config_postcalib(self, postcalib):
@@ -169,7 +169,7 @@ class FandDBackend(strobe.backend.StrobeBackend):
         config.enable_buffer_to_pad[halco.SourceMultiplexerOnReadoutSourceSelection(0)] = True
         builder.write(halco.ReadoutSourceSelectionOnDLS(), config)
 
-        stadls.run(self._connection, builder.done())
+        stadls.run(self._connection, [builder.done()])
 
     def set_readout(self, neuron_index: int, target="membrane"):
         neuron_coord = halco.AtomicNeuronOnDLS(halco.EnumRanged_512_(neuron_index * self._neuron_size))
@@ -196,7 +196,7 @@ class FandDBackend(strobe.backend.StrobeBackend):
 
             builder.write(c.toNeuronConfigOnDLS(), config.asNeuronConfig())
 
-        stadls.run(self._connection, builder.done())
+        stadls.run(self._connection, [builder.done()])
 
     def set_spiking(self, spiking=True):
         self.structure = [strobe.backend.LayerSize(size=layer, spiking=spiking)
@@ -351,7 +351,7 @@ class FandDBackend(strobe.backend.StrobeBackend):
 
         if record_timings:
             timer_very.time("from start")
-        response_of_stadls = stadls.run(self._connection, program)
+        response_of_stadls = stadls.run(self._connection, [program])
         # for h in program.highspeed_link_notifications:
         #     print(f"++++++++++++++++++++++++{h}")
         if record_timings:
@@ -498,4 +498,4 @@ class FandDBackend(strobe.backend.StrobeBackend):
 
         builder.block_until(halco.BarrierOnFPGA(), haldls.Barrier.omnibus)
 
-        stadls.run(self._connection, builder.done())
+        stadls.run(self._connection, [builder.done()])

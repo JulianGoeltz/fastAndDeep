@@ -216,7 +216,7 @@ class NetOnHX(Net):
 
         if not osp.isfile(self.hx_settings['calibration']):
             raise FileNotFoundError(
-                f"Calibration for the current setup {os.environ.get('SLURM_HARDWARE_LICENSES')}"
+                f"Calibration for the current setup {os.environ.get('SLURM_HARDWARE_LICENSES')} "
                 "has to be created first "
                 f"(probably with 'python py/generate_calibration.py --output calibrations/{os.environ.get('SLURM_HARDWARE_LICENSES')}.npz')")
 
