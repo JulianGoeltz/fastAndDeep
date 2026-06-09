@@ -20,7 +20,7 @@ sys.path.append('..')
 import training
 import utils
 
-json_filename = '/jenkins/results/p_jg_FastAndDeep/data.json'
+json_filename = '/jenkins/results/p_jg_FastAndDeep_oneAlloc/data.json'
 m_train = 'x'
 m_test = '+'
 m_testInference = '3'
