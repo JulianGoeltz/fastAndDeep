@@ -50,8 +50,20 @@ with hxcomm.ManagedConnection() as connection:
 
 
     # calibrate neurons
-    neuron_target = calix.spiking.neuron.NeuronCalibTarget(**targets_in_weird_units)
-    target = calix.spiking.SpikingCalibTarget(neuron_target=neuron_target)
+    neuron_target = calix.spiking.neuron.NeuronCalibTarget()
+    for name, target in targets_in_weird_units.items():
+        if name == "i_synin_gm":
+            neuron_target.cuba_synin.i_synin_gm = target
+        elif name == "synapse_dac_bias":
+            neuron_target.synapse_dac_bias = target
+        else:
+            target_config = getattr(neuron_target, name)
+            as_numpy = target_config.to_numpy()
+            as_numpy.fill(target)
+            target_config.from_numpy(as_numpy)
+
+    target = calix.spiking.SpikingCalibTarget()
+    target.neuron_target = neuron_target
 
     neuron_result = calix.spiking.neuron.calibrate(
         stateful_connection,
